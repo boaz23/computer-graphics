@@ -3,5 +3,6 @@
 /external
 /out
 !/build/shaders
+!/build/EnigeRework.sln
 
 # Files
