@@ -30,8 +30,8 @@ void main()
 		vec2 divided = complex_div(f, fd);
 		z = z - divided;
 	}
-	vec4[3] colors = {colorA, colorB, colorC};
-	vec4[3] roots = {rootA, rootB, rootC};
+	vec4[3] colors = vec4[3](colorA, colorB, colorC);
+	vec4[3] roots = vec4[3](rootA, rootB, rootC);
 	int currentMinIndex = 0;
 	for (int j = 1; j < 3; j++) {
 		if(distance(z, vec2(roots[j].x, roots[j].y)) < distance(z, vec2(roots[currentMinIndex].x, roots[currentMinIndex].y))) {
