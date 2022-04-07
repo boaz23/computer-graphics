@@ -33,18 +33,17 @@ void Assignment1::Init()
 	//unsigned char* data = CreateTexture();
 	//AddTexture(1200, 800, data, COLOR);
 
-	////AddTexture("textures/box0.bmp", 2);
+	//AddTexture("textures/box0.bmp", 2);
 
 	//AddMaterial(texIDs, slots, 1);
+	currentCoefIndex = 0;
+	iterationsNum = 20;
 	coeffs = Eigen::Vector4f(1, 1, 0, -1);
 	roots = FindCubicRoots();
 
 	AddShape(Plane, -1, TRIANGLES, 0);
 	SetShapeShader(0, 1);
 	//SetShapeMaterial(0, 0);
-	// pickedShape = 0;
-	// ShapeTransformation(zTranslate,-5,0);
-	// pickedShape = -1;
 	SetShapeStatic(0);
 
 }
@@ -55,7 +54,7 @@ void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	int r = ((shapeIndx + 1) & 0x000000FF) >> 0;
 	int g = ((shapeIndx + 1) & 0x0000FF00) >> 8;
 	int b = ((shapeIndx + 1) & 0x00FF0000) >> 16;
-	s->SetUniform1i("iterationNum", 20);
+	s->SetUniform1i("iterationNum", iterationsNum);
 	s->SetUniform4f("coeffs", coeffs(0), coeffs(1), coeffs(2), coeffs(3));
 	s->SetUniform4f("rootA", roots(0).real(), roots(0).imag(), 0, 0);
 	s->SetUniform4f("rootB", roots(1).real(), roots(1).imag(), 0, 0);
@@ -64,29 +63,17 @@ void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	s->SetUniform4f("colorB", 0, 1, 0, 1);
 	s->SetUniform4f("colorC", 0, 0, 1, 1);
 
-	s->SetUniform1f("time", time);
-	s->SetUniform1f("x", x);
-	s->SetUniform1f("y", y);
+	//s->SetUniform1f("time", time);
+	//s->SetUniform1f("mouseX", mouseX);
+	//s->SetUniform1f("mouseY", mouseY);
 	s->Bind();
 	s->SetUniformMat4f("Proj", Proj);
 	s->SetUniformMat4f("View", View);
 	s->SetUniformMat4f("Model", Model);
 	if (data_list[shapeIndx]->GetMaterial() >= 0 && !materials.empty())
 	{
-		//		materials[shapes[pickedShape]->GetMaterial()]->Bind(textures);
 		BindMaterial(s, data_list[shapeIndx]->GetMaterial());
 	}
-	if (shaderIndx == 0)
-		s->SetUniform4f("lightColor", r / 255.0f, g / 255.0f, b / 255.0f, 0.0f);
-	else
-		s->SetUniform4f("lightColor", time / 10.0f, 60 / 100.0f, 99 / 100.0f, 0.5f);
-	//textures[0]->Bind(0);
-	//s->SetUniform1i("sampler2", materials[shapes[pickedShape]->GetMaterial()]->GetSlot(1));
-	//s->SetUniform4f("lightDirection", 0.0f , 0.0f, -1.0f, 0.0f);
-//	if(shaderIndx == 0)
-//		s->SetUniform4f("lightColor",r/255.0f, g/255.0f, b/255.0f,1.0f);
-//	else 
-//		s->SetUniform4f("lightColor",0.7f,0.8f,0.1f,1.0f);
 	s->Unbind();
 }
 
@@ -99,10 +86,10 @@ void Assignment1::WhenTranslate()
 {
 }
 
-void Assignment1::Animate() {
+void Assignment1::Animate()
+{
 	if (isActive)
 	{
-
 		time += 0.01f;
 	}
 }

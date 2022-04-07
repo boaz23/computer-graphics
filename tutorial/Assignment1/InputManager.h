@@ -93,6 +93,36 @@
 		{
 			switch (key)
 			{
+			case GLFW_KEY_1:
+			case GLFW_KEY_2:
+			case GLFW_KEY_3:
+			case GLFW_KEY_4:
+				scn->SetCurrentCoefIndex(key - GLFW_KEY_1);
+				break;
+
+			case GLFW_KEY_KP_1:
+			case GLFW_KEY_KP_2:
+			case GLFW_KEY_KP_3:
+			case GLFW_KEY_KP_4:
+				scn->SetCurrentCoefIndex(key - GLFW_KEY_KP_1);
+				break;
+
+			case GLFW_KEY_UP:
+				scn->ChangeCurrentCoefBy(0.01);
+				break;
+
+			case GLFW_KEY_DOWN:
+				scn->ChangeCurrentCoefBy(-0.01);
+				break;
+
+			case GLFW_KEY_LEFT:
+				scn->ChangeCurrentIterationsNumBy(1);
+				break;
+
+			case GLFW_KEY_RIGHT:
+				scn->ChangeCurrentIterationsNumBy(-1);
+				break;
+
 			case GLFW_KEY_ESCAPE:
 				glfwSetWindowShouldClose(window, GLFW_TRUE);
 				break;
@@ -104,29 +134,14 @@
 					scn->Activate();
 				break;
 
-			case GLFW_KEY_UP:
-				rndr->MoveCamera(0, scn->xRotate, 0.05f);
-				
-				break;
-			case GLFW_KEY_DOWN:
-				//scn->shapeTransformation(scn->xGlobalRotate,-5.f);
-				//cout<< "down: "<<endl;
-				rndr->MoveCamera(0, scn->xRotate, -0.05f);
-				break;
-			case GLFW_KEY_LEFT:
-				rndr->MoveCamera(0, scn->yRotate, 0.05f);
-				break;
-			case GLFW_KEY_RIGHT:
-				//scn->shapeTransformation(scn->xGlobalRotate,-5.f);
-				//cout<< "down: "<<endl;
-				rndr->MoveCamera(0, scn->yRotate, -0.05f);
-				break;
 			case GLFW_KEY_U:
 				rndr->MoveCamera(0, scn->yTranslate, 0.25f);
 				break;
+
 			case GLFW_KEY_D:
 				rndr->MoveCamera(0, scn->yTranslate, -0.25f);
 				break;
+
 			case GLFW_KEY_L:
 				rndr->MoveCamera(0, scn->xTranslate, -0.25f);
 				break;
