@@ -55,7 +55,7 @@ void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	int r = ((shapeIndx + 1) & 0x000000FF) >> 0;
 	int g = ((shapeIndx + 1) & 0x0000FF00) >> 8;
 	int b = ((shapeIndx + 1) & 0x00FF0000) >> 16;
-	s->SetUniform1i("iterationNum", 100);
+	s->SetUniform1i("iterationNum", 20);
 	s->SetUniform4f("coeffs", coeffs(0), coeffs(1), coeffs(2), coeffs(3));
 	s->SetUniform4f("rootA", roots(0).real(), roots(0).imag(), 0, 0);
 	s->SetUniform4f("rootB", roots(1).real(), roots(1).imag(), 0, 0);
