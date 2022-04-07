@@ -4,5 +4,6 @@
 /out
 !/build/shaders
 !/build/EnigeRework.sln
+/.vs
 
 # Files
