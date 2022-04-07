@@ -1,6 +1,8 @@
 # Directories
 /build/*
-/external/
+/external
+/out
+!/build/shaders
+!/build/EnigeRework.sln
 
 # Files
-!/build/shaders/
