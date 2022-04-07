@@ -1,5 +1,6 @@
 # Directories
-build
-external
+/build/*
+/external/
 
 # Files
+!/build/shaders/

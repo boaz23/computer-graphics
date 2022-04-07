@@ -16,7 +16,7 @@ static void printMat(const Eigen::Matrix4d& mat)
 Assignment1::Assignment1()
 {
 	time = 0;
-	coeffs = Eigen::Vector4cf::Zero();
+	coeffs = Eigen::Vector4f::Zero();
 }
 
 //Assignment1::Assignment1(float angle ,float relationWH, float near, float far) : Scene(angle,relationWH,near,far)
@@ -25,36 +25,28 @@ Assignment1::Assignment1()
 
 void Assignment1::Init()
 {
-	unsigned int texIDs[3] = { 0 , 1, 2 };
-	unsigned int slots[3] = { 0 , 1, 2 };
+	//unsigned int texIDs[1] = { 0 };
+	//unsigned int slots[1] = { 0 };
 
 	AddShader("shaders/pickingShader");
-	AddShader("shaders/exampleShader");
+	AddShader("shaders/newtonShader");
+	//unsigned char* data = CreateTexture();
+	//AddTexture(1200, 800, data, COLOR);
 
-	AddTexture("textures/box0.bmp", 2);
-	AddTexture("textures/grass.bmp", 2);
+	////AddTexture("textures/box0.bmp", 2);
 
-	AddMaterial(texIDs, slots, 2);
-	AddMaterial(texIDs + 1, slots + 1, 1);
+	//AddMaterial(texIDs, slots, 1);
+	coeffs = Eigen::Vector4f(1, 1, 0, -1);
+	roots = FindCubicRoots();
 
 	AddShape(Plane, -1, TRIANGLES, 0);
 	SetShapeShader(0, 1);
-	SetShapeMaterial(0, 0);
+	//SetShapeMaterial(0, 0);
 	// pickedShape = 0;
 	// ShapeTransformation(zTranslate,-5,0);
 	// pickedShape = -1;
 	SetShapeStatic(0);
-	coeffs[0] = 1;
-	coeffs[1] = 1;
-	coeffs[2] = 0;
-	coeffs[3] = 0;
-	Eigen::Vector3cf roots = FindCubicRoots();
-	std::cout << "the roots are:\n" << roots << std::endl;
-	std::cout << "first " << coeffs[0] * roots[0] * roots[0] * roots[0] + coeffs[1] * roots[0] * roots[0] + coeffs[2] * roots[0] + coeffs[3] << std::endl;
-	std::cout << "second " << coeffs[0] * roots[1] * roots[1] * roots[1] + coeffs[1] * roots[1] * roots[1] + coeffs[2] * roots[1] + coeffs[3] << std::endl;
-	std::cout << "third " << coeffs[0] * roots[2] * roots[2] * roots[2] + coeffs[1] * roots[2] * roots[2] + coeffs[2] * roots[2] + coeffs[3] << std::endl;
-	//SetShapeViewport(6, 1);
-//	ReadPixel(); //uncomment when you are reading from the z-buffer
+
 }
 
 void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx)
@@ -63,6 +55,23 @@ void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	int r = ((shapeIndx + 1) & 0x000000FF) >> 0;
 	int g = ((shapeIndx + 1) & 0x0000FF00) >> 8;
 	int b = ((shapeIndx + 1) & 0x00FF0000) >> 16;
+	//uniform int iterationNum;
+	//uniform vec4 coeffs;
+	//uniform vec4 rootA;
+	//uniform vec4 rootB;
+	//uniform vec4 rootC;
+	//uniform vec4 colorA;
+	//uniform vec4 colorB;
+	//uniform vec4 colorC;
+	s->SetUniform1i("iterationNum", 100);
+	s->SetUniform4f("coeffs", coeffs(0), coeffs(1), coeffs(2), coeffs(3));
+	s->SetUniform4f("rootA", roots(0).real(), roots(0).imag(), 0, 0);
+	s->SetUniform4f("rootB", roots(1).real(), roots(1).imag(), 0, 0);
+	s->SetUniform4f("rootC", roots(2).real(), roots(2).imag(), 0, 0);
+	s->SetUniform4f("colorA", 1, 0, 0, 1);
+	s->SetUniform4f("colorB", 0, 1, 0, 1);
+	s->SetUniform4f("colorC", 0, 0, 1, 1);
+
 	s->SetUniform1f("time", time);
 	s->SetUniform1f("x", x);
 	s->SetUniform1f("y", y);
@@ -80,10 +89,6 @@ void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	else
 		s->SetUniform4f("lightColor", time / 10.0f, 60 / 100.0f, 99 / 100.0f, 0.5f);
 	//textures[0]->Bind(0);
-
-
-
-
 	//s->SetUniform1i("sampler2", materials[shapes[pickedShape]->GetMaterial()]->GetSlot(1));
 	//s->SetUniform4f("lightDirection", 0.0f , 0.0f, -1.0f, 0.0f);
 //	if(shaderIndx == 0)
@@ -170,6 +175,7 @@ std::complex<float> Assignment1::NewtonCubicRoot(std::complex<float> num)
 	return root;
 }
 
+
 Eigen::Vector3cf Assignment1::FindRootsOfReduceEquation(Eigen::Vector2cf reduceCoeffs)
 {
 	Eigen::Vector3cf roots = Eigen::Vector3cf::Zero();
@@ -181,6 +187,57 @@ Eigen::Vector3cf Assignment1::FindRootsOfReduceEquation(Eigen::Vector2cf reduceC
 	roots[2] = -p * std::complex<float>(std::cosf(1.0f * 3.14159f / 3.0f), std::sinf(1 * 3.14159f / 3.0f)) + n * std::complex<float>(std::cosf(2.0f * 3.14159f / 3.0f), std::sinf(2 * 3.14159f / 3.0f));
 	return roots;
 }
+
+unsigned char* Assignment1::CreateTexture() {
+	std::vector<Eigen::Vector4f> colors = {
+		Eigen::Vector4f(1, 0, 0, 1),
+		Eigen::Vector4f(0, 1, 0, 1),
+		Eigen::Vector4f(0, 0, 1, 1)
+	};
+	int width = 1200;
+	int height = 800;
+	unsigned char* data = new unsigned char[width * height * 4];
+	coeffs = Eigen::Vector4f(1, 1, 1, 1);
+	//Eigen::Vector3cf roots = FindCubicRoots();
+	for (int i = 0; i < width; i++) {
+		for (int j = 0; j < height; j++) {
+			//Eigen::Vector4f pixelColor = ComputePixelColor(colors, Eigen::Vector2f(i, j), coeffs, roots, 20);
+			//data[i * width + j] = (unsigned char) pixelColor(0) * 255;
+			//data[i * width + j + 1] = (unsigned char)pixelColor(1) * 255;
+			//data[i * width + j + 2] = (unsigned char)pixelColor(2) * 255;
+			//data[i * width + j + 3] = (unsigned char)pixelColor(3) * 255;
+			unsigned char a = 255, b = 0, c = 0, d = 255;
+			data[i * width + j*4] = (unsigned char)0xff;
+			data[i * width + j*4 + 1] = (unsigned char)0x0;
+			data[i * width + j*4 + 2] = (unsigned char)0x0;
+			data[i * width + j*4 + 3] = (unsigned char) 0xff;
+		}
+	}
+	unsigned char a = data[0];
+	a = data[1];
+	a = data[2];
+	a = data[3];
+	return data;
+}
+
+Eigen::Vector4f Assignment1::ComputePixelColor(std::vector<Eigen::Vector4f> colors,  Eigen::Vector2f coordinates, Eigen::Vector4f coeef, Eigen::Vector3cf roots, int iterationNum) {
+	float x = coordinates(0);
+	float y = coordinates(1);
+	std::complex<float> z(x, y);
+	for (int i = 0; i < iterationNum; i++) {
+		std::complex<float> dx = 3 * coeef(3) * z * z + 2 * coeef(2) * z + coeef(3);
+		std::complex<float> currentValue = coeef(3) * z * z * z + coeef(2) * z * z + coeef(1) * z + coeef(0);
+		z = z - currentValue / dx;
+	}
+	int currentMinIndex = 0;
+	for (int i = 1; i < 3; i++) {
+		if(std::abs(z - roots[i]) < std::abs(z - roots[currentMinIndex])) {
+			currentMinIndex = i;
+		}
+	}
+	return colors[currentMinIndex];
+}
+
 Assignment1::~Assignment1(void)
 {
 }
