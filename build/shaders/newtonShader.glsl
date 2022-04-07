@@ -19,25 +19,14 @@ out vec4 Color;
 #define complex_div(a, b) vec2((a.x*b.x + a.y*b.y)/(b.x * b.x + b.y * b.y), (a.y * b.x - a.x * b.y)/(b.x*b.x + b.y*b.y));
 
 
-vec2 fx(vec2 z)
-{
-	vec2 cubicZ = vec2(pow(z.x,3.0)-3.0*z.x*pow(z.y,2.0), 3.0*pow(z.x,2.0)*z.y-pow(z.y,3.0));
-	vec2 quadraticZ = complex_mul(z, z);
-    vec2 xn=vec2(coeffs[0] * cubicZ.x + coeffs[1] * quadraticZ.x + coeffs[2] * z.x + coeffs[3], coeffs[0] * cubicZ.y + coeffs[1] * quadraticZ.y + coeffs[2] * z.y);
-    return xn;
-}
-vec2 fpx(vec2 z)
-{
-	vec2 quadraticZ = complex_mul(z, z);
-    vec2 xn=vec2(coeffs[0] * 3 * quadraticZ.x + coeffs[1] * 2 * z.x + coeffs[2], coeffs[0] * 3 * quadraticZ.y + coeffs[1] * 2 * z.y);
-    return xn;
-}
 void main()
 {
 	vec2 z = vec2(position0.x, position0.y);
 	for (int i = 0; i < iterationNum; i++) {
-		vec2 f = fx(z);
-		vec2 fd = fpx(z);
+		vec2 quadraticZ = complex_mul(z, z);
+		vec2 cubicZ = complex_mul(quadraticZ, z);
+	    vec2 f = coeffs[0] * cubicZ + coeffs[1] * quadraticZ + coeffs[2] * z + vec2(coeffs[3], 0);
+		vec2 fd = coeffs[0] * 3 * quadraticZ + coeffs[1] * 2 * z + vec2(coeffs[2], 0);
 		vec2 divided = complex_div(f, fd);
 		z = z - divided;
 	}
