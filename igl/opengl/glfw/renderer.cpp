@@ -447,7 +447,7 @@ bool Renderer::UpdateViewport(int viewport)
 
 void Renderer::MouseProccessing(int button, int mode, int viewportIndx)
 {
-    if (isPicked || button == 0)
+    if (isPicked || button == 1 || button == 2)
     {
 
 		if(button == 2)

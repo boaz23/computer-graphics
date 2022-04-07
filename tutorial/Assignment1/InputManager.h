@@ -6,7 +6,7 @@
 
 
 	void glfw_mouse_callback(GLFWwindow* window,int button, int action, int mods)
-	{	
+	{
 		if (action == GLFW_PRESS)
 		{
 			Renderer* rndr = (Renderer*)glfwGetWindowUserPointer(window);
@@ -38,16 +38,16 @@
 	{
 		Renderer* rndr = (Renderer*)glfwGetWindowUserPointer(window);
 		Assignment1* scn = (Assignment1*)rndr->GetScene();
-		
-		if (rndr->IsPicked())
-		{
-			rndr->UpdateZpos((int)yoffset);
-			rndr->MouseProccessing(GLFW_MOUSE_BUTTON_MIDDLE);
-		}
-		else
-		{
-			rndr->MoveCamera(0, rndr->zTranslate, (float)yoffset);
-		}
+		scn->ChangeZoomBy((float)-yoffset);
+		//if (rndr->IsPicked())
+		//{
+		//	rndr->UpdateZpos((int)yoffset);
+		//	rndr->MouseProccessing(GLFW_MOUSE_BUTTON_MIDDLE);
+		//}
+		//else
+		//{
+		//	rndr->MoveCamera(0, rndr->zTranslate, (float)yoffset);
+		//}
 		
 	}
 	

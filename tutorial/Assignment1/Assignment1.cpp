@@ -25,18 +25,13 @@ Assignment1::Assignment1()
 
 void Assignment1::Init()
 {
-	//unsigned int texIDs[1] = { 0 };
-	//unsigned int slots[1] = { 0 };
-
 	AddShader("shaders/pickingShader");
 	AddShader("shaders/newtonShader");
-	//unsigned char* data = CreateTexture();
-	//AddTexture(1200, 800, data, COLOR);
-
-	//AddTexture("textures/box0.bmp", 2);
-
-	//AddMaterial(texIDs, slots, 1);
 	currentCoefIndex = 0;
+	zoomFactor = 1.0;
+	zoomNormalized = 1.0 / zoomFactor;
+	translateX = 0.0;
+	translateY = 0.0;
 	iterationsNum = 20;
 	coeffs = Eigen::Vector4f(1, 1, 0, -1);
 	roots = FindCubicRoots();
@@ -44,8 +39,8 @@ void Assignment1::Init()
 	AddShape(Plane, -1, TRIANGLES, 0);
 	SetShapeShader(0, 1);
 	//SetShapeMaterial(0, 0);
-	SetShapeStatic(0);
-
+	//SetShapeStatic(0);
+	//pickedShape = 0;
 }
 
 void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx)
@@ -62,10 +57,9 @@ void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	s->SetUniform4f("colorA", 1, 0, 0, 1);
 	s->SetUniform4f("colorB", 0, 1, 0, 1);
 	s->SetUniform4f("colorC", 0, 0, 1, 1);
-
-	//s->SetUniform1f("time", time);
-	//s->SetUniform1f("mouseX", mouseX);
-	//s->SetUniform1f("mouseY", mouseY);
+	s->SetUniform1f("translateX", translateX);
+	s->SetUniform1f("translateY", translateY);
+	s->SetUniform1f("zoomFactor", zoomNormalized);
 	s->Bind();
 	s->SetUniformMat4f("Proj", Proj);
 	s->SetUniformMat4f("View", View);
@@ -82,8 +76,10 @@ void Assignment1::WhenRotate()
 {
 }
 
-void Assignment1::WhenTranslate()
+void Assignment1::WhenTranslate(const Eigen::Matrix4d& preMat, float dx, float dy) 
 {
+	TranslateX(dx);
+	TranslateY(-dy);
 }
 
 void Assignment1::Animate()
@@ -111,7 +107,6 @@ Eigen::Vector3cf Assignment1::FindCubicRoots()
 	std::complex<float> bOver3a = (coeffs[1] / coeffs[0]) / 3.0f;
 	reduceCoeffs[0] = coeffs[2] / coeffs[0] - 3.0f * bOver3a * bOver3a;
 	reduceCoeffs[1] = coeffs[2] / coeffs[0] * bOver3a - coeffs[3] / coeffs[0] - 2.0f * bOver3a * bOver3a * bOver3a;
-	std::cout << "reduced\n" << reduceCoeffs << std::endl;
 	if (reduceCoeffs.norm() > 0.000001)
 	{
 		roots = FindRootsOfReduceEquation(reduceCoeffs);
@@ -167,54 +162,37 @@ Eigen::Vector3cf Assignment1::FindRootsOfReduceEquation(Eigen::Vector2cf reduceC
 	return roots;
 }
 
-unsigned char* Assignment1::CreateTexture() {
-	std::vector<Eigen::Vector4f> colors = {
-		Eigen::Vector4f(1, 0, 0, 1),
-		Eigen::Vector4f(0, 1, 0, 1),
-		Eigen::Vector4f(0, 0, 1, 1)
-	};
-	int width = 1200;
-	int height = 800;
-	unsigned char* data = new unsigned char[width * height * 4];
-	coeffs = Eigen::Vector4f(1, 1, 1, 1);
-	//Eigen::Vector3cf roots = FindCubicRoots();
-	for (int i = 0; i < width; i++) {
-		for (int j = 0; j < height; j++) {
-			//Eigen::Vector4f pixelColor = ComputePixelColor(colors, Eigen::Vector2f(i, j), coeffs, roots, 20);
-			//data[i * width + j] = (unsigned char) pixelColor(0) * 255;
-			//data[i * width + j + 1] = (unsigned char)pixelColor(1) * 255;
-			//data[i * width + j + 2] = (unsigned char)pixelColor(2) * 255;
-			//data[i * width + j + 3] = (unsigned char)pixelColor(3) * 255;
-			unsigned char a = 255, b = 0, c = 0, d = 255;
-			data[i * width + j*4] = (unsigned char)0xff;
-			data[i * width + j*4 + 1] = (unsigned char)0x0;
-			data[i * width + j*4 + 2] = (unsigned char)0x0;
-			data[i * width + j*4 + 3] = (unsigned char) 0xff;
-		}
-	}
-	unsigned char a = data[0];
-	a = data[1];
-	a = data[2];
-	a = data[3];
-	return data;
+
+void Assignment1::SetCurrentCoefIndex(int index) 
+{ 
+	currentCoefIndex = index; 
+}
+void Assignment1::ChangeCurrentCoefBy(float d)
+{
+	coeffs(currentCoefIndex) += d;
+	roots = FindCubicRoots();
 }
 
-Eigen::Vector4f Assignment1::ComputePixelColor(std::vector<Eigen::Vector4f> colors,  Eigen::Vector2f coordinates, Eigen::Vector4f coeef, Eigen::Vector3cf roots, int iterationNum) {
-	float x = coordinates(0);
-	float y = coordinates(1);
-	std::complex<float> z(x, y);
-	for (int i = 0; i < iterationNum; i++) {
-		std::complex<float> dx = 3 * coeef(3) * z * z + 2 * coeef(2) * z + coeef(3);
-		std::complex<float> currentValue = coeef(3) * z * z * z + coeef(2) * z * z + coeef(1) * z + coeef(0);
-		z = z - currentValue / dx;
+void Assignment1::ChangeCurrentIterationsNumBy(int diff)
+{
+	iterationsNum += diff;
+	if (iterationsNum < 0)
+	{
+		iterationsNum = 0;
 	}
-	int currentMinIndex = 0;
-	for (int i = 1; i < 3; i++) {
-		if(std::abs(z - roots[i]) < std::abs(z - roots[currentMinIndex])) {
-			currentMinIndex = i;
-		}
-	}
-	return colors[currentMinIndex];
+}
+
+void Assignment1::TranslateX(float dx) 
+{ 
+	translateX += TRANSLATION_SENSITIVITY * dx * zoomNormalized; 
+}
+void Assignment1::TranslateY(float dy) 
+{ 
+	translateY += TRANSLATION_SENSITIVITY * dy * zoomNormalized;  
+}
+void Assignment1::ChangeZoomBy(float dz) 
+{
+	zoomNormalized /= 1 + SCALE_SENSITIVITY * dz;
 }
 
 Assignment1::~Assignment1(void)

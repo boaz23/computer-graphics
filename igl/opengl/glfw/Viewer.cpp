@@ -611,6 +611,8 @@ IGL_INLINE bool
 
         if (button == 1)
         {
+            movCoeff = 2.0f;
+            WhenTranslate(scnMat * cameraMat, -xrel / movCoeff, yrel / movCoeff);
             for (int pShape : pShapes)
             {
                 pickedShape = pShape;

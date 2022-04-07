@@ -1,5 +1,7 @@
 #pragma once
 #include "igl/opengl/glfw/Viewer.h"
+#define SCALE_SENSITIVITY 0.01
+#define TRANSLATION_SENSITIVITY 0.01
 
 class Assignment1 : public igl::opengl::glfw::Viewer
 {
@@ -9,11 +11,9 @@ private:
 	Eigen::Vector3cf roots;
 	int iterationsNum;
 	int currentCoefIndex;
-	float translateX, translateY, zoomFactor;
+	float translateX, translateY, zoomFactor, zoomNormalized;
 
 	Eigen::Vector3cf FindRootsOfReduceEquation(Eigen::Vector2cf reduceCoeffs);
-	unsigned char* CreateTexture();
-	Eigen::Vector4f ComputePixelColor(std::vector<Eigen::Vector4f> colors, Eigen::Vector2f coordinates, Eigen::Vector4f coeef, Eigen::Vector3cf roots, int iterationNum);
 	std::complex<float> Assignment1::NewtonCubicRoot(std::complex<float> num);
 
 public:
@@ -22,27 +22,16 @@ public:
 	void Init();
 	void Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx);
 	void WhenRotate();
-	void WhenTranslate();
+	void WhenTranslate(const Eigen::Matrix4d& preMat, float dx, float dy);
 	void Animate() override;
 	void ScaleAllShapes(float amt, int viewportIndx);
 
-	void SetCurrentCoefIndex(int index) { currentCoefIndex = index; }
-	void ChangeCurrentCoefBy(float d)
-	{
-		coeffs(currentCoefIndex) += d;
-		roots = FindCubicRoots();
-	}
-	void ChangeCurrentIterationsNumBy(int diff)
-	{
-		iterationsNum += diff;
-		if (iterationsNum < 0)
-		{
-			iterationsNum = 0;
-		}
-	}
-	void TranslateX(float dx) { translateX += dx; }
-	void TranslateY(float dy) { translateY += dy; }
-	void ChangeZoomBy(float d) { zoomFactor += d; }
+	void SetCurrentCoefIndex(int index);
+	void ChangeCurrentCoefBy(float d);
+	void ChangeCurrentIterationsNumBy(int diff);
+	void TranslateX(float dx);
+	void TranslateY(float dy);
+	void ChangeZoomBy(float d);
 
 	Eigen::Vector3cf FindCubicRoots();
 

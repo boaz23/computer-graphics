@@ -13,16 +13,28 @@ uniform vec4 rootC;
 uniform vec4 colorA;
 uniform vec4 colorB;
 uniform vec4 colorC;
-
+uniform float translateX;
+uniform float translateY;
+uniform float zoomFactor;
 out vec4 Color;
 
 #define complex_mul(a, b) vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
 #define complex_div(a, b) vec2((a.x*b.x + a.y*b.y)/(b.x * b.x + b.y * b.y), (a.y * b.x - a.x * b.y)/(b.x*b.x + b.y*b.y));
 
+vec2 getCoordinatesFromScreen(vec2 texCoord, vec4 coordinateRange){
+	float horizontalSize = coordinateRange.y-coordinateRange.x; //Size of horizontal part of screen
+	float verticalSize = coordinateRange.w-coordinateRange.z; //Size of vertical part of screen
+	vec2 toRet;
+	toRet.x = texCoord.x*horizontalSize+coordinateRange.x; //Multiply by size and add initial offset position
+	toRet.y = texCoord.y*verticalSize+coordinateRange.z;
+
+	return toRet;
+}
 
 void main()
 {
-	vec2 pos = vec2(position0.x, position0.y);
+	vec4 coordRange = vec4(-2.0,2.0,-2.0,2.0)*zoomFactor + vec4(vec2(translateX), vec2(-translateY));
+	vec2 pos = getCoordinatesFromScreen(texCoord0, coordRange); //vec2(position0.x, position0.y);
 	float epsilon = 1e-4; // TODO: times the length of the interval
 	vec2 z = pos;
 	int i;
