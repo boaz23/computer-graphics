@@ -25,7 +25,6 @@ Assignment1::Assignment1()
 
 void Assignment1::Init()
 {
-	AddShader("shaders/pickingShader");
 	AddShader("shaders/newtonShader");
 	currentCoefIndex = 0;
 	zoomNormalized = 1.0;
@@ -40,10 +39,8 @@ void Assignment1::Init()
 	roots = FindCubicRoots();
 
 	AddShape(Plane, -1, TRIANGLES, 0);
-	SetShapeShader(0, 1);
-	//SetShapeMaterial(0, 0);
-	//SetShapeStatic(0);
-	//pickedShape = 0;
+	SetShapeShader(0, 0);
+	SetShapeStatic(0);
 }
 
 void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx)
@@ -60,8 +57,7 @@ void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	s->SetUniform4f("colorA", 1, 0, 0, 1);
 	s->SetUniform4f("colorB", 0, 1, 0, 1);
 	s->SetUniform4f("colorC", 0, 0, 1, 1);
-	s->SetUniform1f("translateX", translateX);
-	s->SetUniform1f("translateY", translateY);
+	s->SetUniform4f("translation", translateX, -translateY, 0, 0);
 	s->SetUniform1f("zoomFactor", zoomNormalized);
 	s->Bind();
 	s->SetUniformMat4f("Proj", Proj);
@@ -197,9 +193,19 @@ void Assignment1::ChangeCurrentIterationsNumBy(int diff)
 	}
 }
 
+
+void Assignment1::PrintCurrentCoefficient() {
+	char c = 'a' + currentCoefIndex;
+	std::cout << "Current Coefficient : " << c << '(' << coeffs(currentCoefIndex) << ')' << std::endl;
+}
+
+void Assignment1::ResetZoom() {
+	zoomNormalized = 1.0f;
+}
+
 void Assignment1::TranslateX(float dx) 
 { 
-	translateX += TRANSLATION_SENSITIVITY * dx * zoomNormalized; 
+	translateX += TRANSLATION_SENSITIVITY * dx * zoomNormalized;
 }
 void Assignment1::TranslateY(float dy) 
 { 

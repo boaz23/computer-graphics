@@ -2,7 +2,8 @@
 #include "igl/opengl/glfw/Viewer.h"
 #define SCALE_SENSITIVITY 0.01
 #define TRANSLATION_SENSITIVITY 0.01
-
+#define WIDTH 1200
+#define HEIGHT 800
 class Assignment1 : public igl::opengl::glfw::Viewer
 {
 private:
@@ -31,9 +32,11 @@ public:
 	void SetCurrentCoefIndex(int index);
 	void ChangeCurrentCoefBy(float d);
 	void ChangeCurrentIterationsNumBy(int diff);
+	void ResetZoom();
 	void TranslateX(float dx);
 	void TranslateY(float dy);
 	void ChangeZoomBy(float d);
+	void PrintCurrentCoefficient();
 	float GetZoom() { return zoomNormalized; };
 
 	Eigen::Vector3cf FindCubicRoots();

@@ -19,7 +19,6 @@
 //#include <imgui_fonts_droid_sans.h>
 //#include <GLFW/glfw3.h>
 #include <iostream>
-#include <tutorial/Assignment1/Assignment1.h>
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace igl
@@ -288,7 +287,6 @@ IGL_INLINE void ImGuiMenu::draw_viewer_menu(igl::opengl::glfw::Viewer *viewer, s
     ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.3f);
     ImGui::DragFloat("Shininess", &(viewer->data()->shininess), 0.05f, 0.0f, 100.0f);
     ImGui::PopItemWidth();
-    ImGui::Text("Current Zoom: %f\n", ((Assignment1*)viewer)->GetZoom());
   }
 
   // Overlays

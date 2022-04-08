@@ -39,7 +39,8 @@
 	{
 		Renderer* rndr = (Renderer*)glfwGetWindowUserPointer(window);
 		Assignment1* scn = (Assignment1*)rndr->GetScene();
-		scn->ChangeZoomBy((float)-yoffset);
+		scn->ChangeZoomBy((float)yoffset);
+		std::cout << "Pixel width : " << scn->GetZoom() * 2 / WIDTH << std::endl;
 		//if (rndr->IsPicked())
 		//{
 		//	rndr->UpdateZpos((int)yoffset);
@@ -92,6 +93,7 @@
 			case GLFW_KEY_3:
 			case GLFW_KEY_4:
 				scn->SetCurrentCoefIndex(key - GLFW_KEY_1);
+				scn->PrintCurrentCoefficient();
 				break;
 
 			case GLFW_KEY_KP_1:
@@ -99,6 +101,7 @@
 			case GLFW_KEY_KP_3:
 			case GLFW_KEY_KP_4:
 				scn->SetCurrentCoefIndex(key - GLFW_KEY_KP_1);
+				scn->PrintCurrentCoefficient();
 				break;
 
 			case GLFW_KEY_UP:
@@ -115,6 +118,9 @@
 
 			case GLFW_KEY_RIGHT:
 				scn->ChangeCurrentIterationsNumBy(-1);
+				break;
+			case GLFW_KEY_Z:
+				scn->ResetZoom();
 				break;
 
 			case GLFW_KEY_ESCAPE:
