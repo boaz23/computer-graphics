@@ -40,7 +40,7 @@
 		Renderer* rndr = (Renderer*)glfwGetWindowUserPointer(window);
 		Assignment1* scn = (Assignment1*)rndr->GetScene();
 		scn->ChangeZoomBy((float)yoffset);
-		std::cout << "Pixel width : " << scn->GetZoom() * 2 / WIDTH << std::endl;
+		std::cout << "Pixel width : " << scn->GetZoom() / WIDTH << std::endl;
 		//if (rndr->IsPicked())
 		//{
 		//	rndr->UpdateZpos((int)yoffset);
