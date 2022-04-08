@@ -18,6 +18,7 @@
 			if (rndr->Picking((int)x2, (int)y2))
 			{
 				rndr->UpdatePosition(x2, y2);
+				scn->UpdatePosition(x2, y2);
 				if(button == GLFW_MOUSE_BUTTON_LEFT)
 					rndr->Pressed();
 			}
@@ -57,22 +58,15 @@
 		Assignment1* scn = (Assignment1*)rndr->GetScene();
 
 		rndr->UpdatePosition((float)xpos,(float)ypos);
+		scn->UpdatePosition((float)xpos, (float)ypos);
 
 		if (rndr->CheckViewport(xpos,ypos, 0))
 		{
-			if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
+			if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
 			{
-
-				rndr->MouseProccessing(GLFW_MOUSE_BUTTON_RIGHT);
-			}
-			else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
-			{
-				
 				rndr->MouseProccessing(GLFW_MOUSE_BUTTON_LEFT);
+				scn->WhenTranslate();
 			}
-			else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_RELEASE && rndr->IsPicked() && rndr->IsMany())
-					rndr->MouseProccessing(GLFW_MOUSE_BUTTON_RIGHT);
-
 		}
 	}
 

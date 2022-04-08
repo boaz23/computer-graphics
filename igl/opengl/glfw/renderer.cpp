@@ -49,14 +49,14 @@ Renderer::Renderer(float angle, float relationWH, float near, float far)
 
 
 
-void Renderer::Clear(float r, float g, float b, float a,unsigned int flags)
+void Renderer::Clear(float r, float g, float b, float a, unsigned int flags)
 {
     glClearColor(r, g, b, a);
 
     glClear(GL_COLOR_BUFFER_BIT | ((GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT) & flags));
 }
 
-IGL_INLINE void Renderer::draw_by_info(int info_index){
+IGL_INLINE void Renderer::draw_by_info(int info_index) {
     DrawInfo* info = drawInfos[info_index];
     buffers[info->buffer]->Bind();
     glViewport(viewports[info->viewportIndx].x(), viewports[info->viewportIndx].y(), viewports[info->viewportIndx].z(), viewports[info->viewportIndx].w());
@@ -65,7 +65,7 @@ IGL_INLINE void Renderer::draw_by_info(int info_index){
         glEnable(GL_SCISSOR_TEST);
         int x = std::min(xWhenPress, xold);
         int y = std::min(viewports[info->viewportIndx].w() - yWhenPress, viewports[info->viewportIndx].w() - yold);
-        glScissor(x, y, std::abs(xWhenPress - xold), std::abs( yWhenPress - yold));
+        glScissor(x, y, std::abs(xWhenPress - xold), std::abs(yWhenPress - yold));
     }
     else
         glDisable(GL_SCISSOR_TEST);
@@ -114,72 +114,72 @@ IGL_INLINE void Renderer::draw_by_info(int info_index){
     if (info->flags & toClear)
     {
         if (info->flags & blackClear)
-            Clear(0, 0, 0, 0,info->flags);
+            Clear(0, 0, 0, 0, info->flags);
         else
-            Clear(info->Clear_RGBA.x(), info->Clear_RGBA.y(), info->Clear_RGBA.z(), info->Clear_RGBA.w(),info->flags);
+            Clear(info->Clear_RGBA.x(), info->Clear_RGBA.y(), info->Clear_RGBA.z(), info->Clear_RGBA.w(), info->flags);
     }
 
-    scn->Draw(info->shaderIndx, Proj, View, info->viewportIndx, info->flags,info->property_id);
+    scn->Draw(info->shaderIndx, Proj, View, info->viewportIndx, info->flags, info->property_id);
 }
 
-IGL_INLINE void Renderer::draw( GLFWwindow* window)
+IGL_INLINE void Renderer::draw(GLFWwindow* window)
 {
-	using namespace std;
-	using namespace Eigen;
+    using namespace std;
+    using namespace Eigen;
 
-	int width, height;
-	glfwGetFramebufferSize(window, &width, &height);
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
 
-	int width_window, height_window;
-	glfwGetWindowSize(window, &width_window, &height_window);
-	
-	auto highdpi_tmp = (width_window == 0 || width == 0) ? highdpi : (width / width_window);
+    int width_window, height_window;
+    glfwGetWindowSize(window, &width_window, &height_window);
 
-	if (fabs(highdpi_tmp - highdpi) > 1e-8)
-	{
-		post_resize(window,width, height);
-		highdpi = highdpi_tmp;
-	}
-	if (menu)
-	{
-		menu->pre_draw();
-		menu->callback_draw_viewer_menu();
+    auto highdpi_tmp = (width_window == 0 || width == 0) ? highdpi : (width / width_window);
+
+    if (fabs(highdpi_tmp - highdpi) > 1e-8)
+    {
+        post_resize(window, width, height);
+        highdpi = highdpi_tmp;
+    }
+    if (menu)
+    {
+        menu->pre_draw();
+        menu->callback_draw_viewer_menu();
     }
     int indx = 0;
     for (auto& info : drawInfos)
     {
-        if (!(info->flags & (inAction | inAction2)) || ((info->flags & inAction2) && !(info->flags & stencilTest) && isPressed && !isPicked) || ((info->flags & inAction2) && (info->flags & stencilTest)  && isPicked ))
+        if (!(info->flags & (inAction | inAction2)) || ((info->flags & inAction2) && !(info->flags & stencilTest) && isPressed && !isPicked) || ((info->flags & inAction2) && (info->flags & stencilTest) && isPicked))
             draw_by_info(indx);
         indx++;
     }
 
     if (menu)
-	{
-		menu->post_draw();
+    {
+        menu->post_draw();
 
-	}
+    }
 
 
 }
 
 void Renderer::SetScene(igl::opengl::glfw::Viewer* viewer)
 {
-	scn = viewer;
+    scn = viewer;
 }
 
 
 void Renderer::UpdatePosition(double xpos, double ypos)
 {
-	xrel = xold - xpos;
-	yrel = yold - ypos;
-	xold = xpos;
-	yold = ypos;
+    xrel = xold - xpos;
+    yrel = yold - ypos;
+    xold = xpos;
+    yold = ypos;
 }
 
 
 void Renderer::TranslateCamera(Eigen::Vector3f amt)
 {
-	cameras[0]->MyTranslate(amt.cast<double>(), true);
+    cameras[0]->MyTranslate(amt.cast<double>(), true);
 }
 
 //void Renderer::RotateCamera(float amtX, float amtY)
@@ -212,7 +212,7 @@ void Renderer::AddCamera(const Eigen::Vector3d& pos, float fov, float relationWH
     if (infoIndx > 0 && infoIndx < drawInfos.size())
     {
         drawInfos[infoIndx]->SetCamera(cameras.size());
-        drawInfos[infoIndx-1]->SetCamera(cameras.size());
+        drawInfos[infoIndx - 1]->SetCamera(cameras.size());
     }
     cameras.push_back(new igl::opengl::Camera(fov, relationWH, zNear, zFar));
     cameras.back()->MyTranslate(pos, false);
@@ -227,7 +227,7 @@ void Renderer::AddViewport(int left, int bottom, int width, int height)
 
 unsigned int Renderer::AddBuffer(int infoIndx, bool stencil)
 {
-    CopyDraw(infoIndx,buffer ,buffers.size());
+    CopyDraw(infoIndx, buffer, buffers.size());
 
     DrawInfo* info = drawInfos.back();
     info->SetFlags(stencilTest | toClear | blackClear);
@@ -235,11 +235,11 @@ unsigned int Renderer::AddBuffer(int infoIndx, bool stencil)
     int width = viewports[info->viewportIndx].z(), height = viewports[info->viewportIndx].w();
 
     unsigned int texId;
-	texId = scn->AddTexture(width, height, 0, COLOR);
-	if (stencil)
-		scn->AddTexture(width, height, 0, STENCIL);
-	else
-		scn->AddTexture(width, height, 0, DEPTH);
+    texId = scn->AddTexture(width, height, 0, COLOR);
+    if (stencil)
+        scn->AddTexture(width, height, 0, STENCIL);
+    else
+        scn->AddTexture(width, height, 0, DEPTH);
     scn->BindTexture(texId, info->buffer - 1);
     buffers.push_back(new igl::opengl::DrawBuffer(width, height, stencil, texId + 1));
 
@@ -256,13 +256,13 @@ int Renderer::Create2Dmaterial(int texsNum)
         texIds.push_back(texId);
         slots.push_back(i);
     }
-	materialIndx2D = scn->AddMaterial((unsigned int*)&texIds[0], (unsigned int*)&slots[0], texsNum);
+    materialIndx2D = scn->AddMaterial((unsigned int*)&texIds[0], (unsigned int*)&slots[0], texsNum);
     return materialIndx2D;
 }
 
 void Renderer::AddDraw(int viewportIndx, int cameraIndx, int shaderIndx, int buffIndx, unsigned int flags)
 {
-    drawInfos.emplace_back(new DrawInfo(viewportIndx, cameraIndx, shaderIndx, buffIndx, flags,next_property_id));
+    drawInfos.emplace_back(new DrawInfo(viewportIndx, cameraIndx, shaderIndx, buffIndx, flags, next_property_id));
     next_property_id <<= 1;
 }
 
@@ -271,21 +271,21 @@ void Renderer::CopyDraw(int infoIndx, int property, int indx)
     DrawInfo* info = drawInfos[infoIndx];
     switch (property)
     {
-        case non:
-            drawInfos.emplace_back(new DrawInfo(info->viewportIndx, info->cameraIndx, info->shaderIndx, info->buffer, info->flags,next_property_id));
-            break;
-        case viewport:
-            drawInfos.emplace_back(new DrawInfo(indx, info->cameraIndx, info->shaderIndx, info->buffer, info->flags,next_property_id));
-            break;
-        case camera:
-            drawInfos.emplace_back(new DrawInfo(info->viewportIndx, indx, info->shaderIndx, info->buffer, info->flags,next_property_id));
-            break;
-        case shader:
-            drawInfos.emplace_back(new DrawInfo(info->viewportIndx, info->cameraIndx, indx, info->buffer, info->flags,next_property_id));
-            break;
-        case buffer:
-            drawInfos.emplace_back(new DrawInfo(info->viewportIndx, info->cameraIndx, info->shaderIndx, indx, info->flags,next_property_id));
-            break;
+    case non:
+        drawInfos.emplace_back(new DrawInfo(info->viewportIndx, info->cameraIndx, info->shaderIndx, info->buffer, info->flags, next_property_id));
+        break;
+    case viewport:
+        drawInfos.emplace_back(new DrawInfo(indx, info->cameraIndx, info->shaderIndx, info->buffer, info->flags, next_property_id));
+        break;
+    case camera:
+        drawInfos.emplace_back(new DrawInfo(info->viewportIndx, indx, info->shaderIndx, info->buffer, info->flags, next_property_id));
+        break;
+    case shader:
+        drawInfos.emplace_back(new DrawInfo(info->viewportIndx, info->cameraIndx, indx, info->buffer, info->flags, next_property_id));
+        break;
+    case buffer:
+        drawInfos.emplace_back(new DrawInfo(info->viewportIndx, info->cameraIndx, info->shaderIndx, indx, info->flags, next_property_id));
+        break;
     }
     next_property_id <<= 1;
 }
@@ -300,8 +300,8 @@ void Renderer::SetViewport(int left, int bottom, int width, int height, int indx
 
 Renderer::~Renderer()
 {
-	//if (scn)
-	//	delete scn;
+    //if (scn)
+    //	delete scn;
 }
 
 
@@ -313,7 +313,7 @@ bool Renderer::Picking(int x, int y)
     unsigned char data[4];
     //glGetIntegerv(GL_VIEWPORT, viewport); //reading viewport parameters
     int i = 0;
-    isPicked =  scn->Picking(data,i);
+    isPicked = scn->Picking(data, i);
     return isPicked;
 
 }
@@ -332,10 +332,10 @@ void Renderer::PickMany(int viewportIndx)
         int yMin = std::min(viewports[viewportCurrIndx].w() - yWhenPress, viewports[viewportCurrIndx].w() - yold);
         int xMax = std::max(xWhenPress, xold);
         int yMax = std::max(viewports[viewportCurrIndx].w() - yWhenPress, viewports[viewportCurrIndx].w() - yold);
-		depth = scn->AddPickedShapes(cameras[0]->GetViewProjection().cast<double>() * (cameras[0]->MakeTransd()).inverse(), viewports[viewportCurrIndx], viewportCurrIndx, xMin, xMax, yMin, yMax,viewportIndx);
+        depth = scn->AddPickedShapes(cameras[0]->GetViewProjection().cast<double>() * (cameras[0]->MakeTransd()).inverse(), viewports[viewportCurrIndx], viewportCurrIndx, xMin, xMax, yMin, yMax, viewportIndx);
         if (depth != -1)
         {
-            depth = (depth*2.0f - cameras[0]->GetFar()) / (cameras[0]->GetNear() - cameras[0]->GetFar());
+            depth = (depth * 2.0f - cameras[0]->GetFar()) / (cameras[0]->GetNear() - cameras[0]->GetFar());
             isMany = true;
             isPicked = true;
         }
@@ -363,10 +363,10 @@ void Renderer::ActionDraw(int viewportIndx)
 
     }
 }
-IGL_INLINE void Renderer::resize(GLFWwindow* window,int w, int h)
-	{
-		post_resize(window,w, h);
-	}
+IGL_INLINE void Renderer::resize(GLFWwindow* window, int w, int h)
+{
+    post_resize(window, w, h);
+}
 // _________________________
 // |           *            |
 // |           *            |
@@ -376,54 +376,54 @@ IGL_INLINE void Renderer::resize(GLFWwindow* window,int w, int h)
 // _________________________
 
 IGL_INLINE void Renderer::post_resize(GLFWwindow* window, int w, int h)
-	{
-        // hold old windows size
-        int x = 0;
-        int y = 0;
-        for(auto & viewport : viewports){
-            x = std::max(x,viewport.x()+viewport.z());
-            y = std::max(y,viewport.y()+viewport.w());
-        }
-        float ratio_x = (float)w/(float)x;
-        float ratio_y = (float)h/(float)y;
-        std::cout << "called" << std::endl;
-        for(auto & viewport : viewports){
-            viewport = Eigen::Vector4i((int)((float)viewport.x()*ratio_x),(int)((float)viewport.y()*ratio_y),(int)((float)viewport.z()*ratio_x),(int)((float)viewport.w()*ratio_y));
-        }
-		if (callback_post_resize)
-		{
-			callback_post_resize(window, w, h);
-		}
-	}
+{
+    // hold old windows size
+    int x = 0;
+    int y = 0;
+    for (auto& viewport : viewports) {
+        x = std::max(x, viewport.x() + viewport.z());
+        y = std::max(y, viewport.y() + viewport.w());
+    }
+    float ratio_x = (float)w / (float)x;
+    float ratio_y = (float)h / (float)y;
+    std::cout << "called" << std::endl;
+    for (auto& viewport : viewports) {
+        viewport = Eigen::Vector4i((int)((float)viewport.x() * ratio_x), (int)((float)viewport.y() * ratio_y), (int)((float)viewport.z() * ratio_x), (int)((float)viewport.w() * ratio_y));
+    }
+    if (callback_post_resize)
+    {
+        callback_post_resize(window, w, h);
+    }
+}
 
 
 void Renderer::MoveCamera(int cameraIndx, int type, float amt)
 {
     switch (type)
     {
-        case xTranslate:
-            cameras[cameraIndx]->TranslateInSystem(cameras[cameraIndx]->MakeTransd().block<3,3>(0,0), Eigen::Vector3d(amt, 0, 0)); //MakeTransNoScale was here
-            break;
-        case yTranslate:
-            cameras[cameraIndx]->TranslateInSystem(cameras[cameraIndx]->MakeTransd().block<3,3>(0,0),Eigen::Vector3d(0, amt, 0)); //MakeTransNoScale was here
-            break;
-        case zTranslate:
-            cameras[cameraIndx]->TranslateInSystem(cameras[cameraIndx]->MakeTransd().block<3,3>(0,0),Eigen::Vector3d(0, 0, amt)); //MakeTransNoScale was here
-            break;
-        case xRotate:
-            cameras[cameraIndx]->MyRotate(Eigen::Vector3d(1, 0, 0), amt);
-            break;
-        case yRotate:
-            cameras[cameraIndx]->MyRotate(Eigen::Vector3d(0, 1, 0), amt);
-            break;
-        case zRotate:
-            cameras[cameraIndx]->MyRotate(Eigen::Vector3d(0, 0, 1), amt);
-            break;
-        case scaleAll:
-            cameras[cameraIndx]->MyScale( Eigen::Vector3d(amt, amt,  amt));
-            break;
-        default:
-            break;
+    case xTranslate:
+        cameras[cameraIndx]->TranslateInSystem(cameras[cameraIndx]->MakeTransd().block<3, 3>(0, 0), Eigen::Vector3d(amt, 0, 0)); //MakeTransNoScale was here
+        break;
+    case yTranslate:
+        cameras[cameraIndx]->TranslateInSystem(cameras[cameraIndx]->MakeTransd().block<3, 3>(0, 0), Eigen::Vector3d(0, amt, 0)); //MakeTransNoScale was here
+        break;
+    case zTranslate:
+        cameras[cameraIndx]->TranslateInSystem(cameras[cameraIndx]->MakeTransd().block<3, 3>(0, 0), Eigen::Vector3d(0, 0, amt)); //MakeTransNoScale was here
+        break;
+    case xRotate:
+        cameras[cameraIndx]->MyRotate(Eigen::Vector3d(1, 0, 0), amt);
+        break;
+    case yRotate:
+        cameras[cameraIndx]->MyRotate(Eigen::Vector3d(0, 1, 0), amt);
+        break;
+    case zRotate:
+        cameras[cameraIndx]->MyRotate(Eigen::Vector3d(0, 0, 1), amt);
+        break;
+    case scaleAll:
+        cameras[cameraIndx]->MyScale(Eigen::Vector3d(amt, amt, amt));
+        break;
+    default:
+        break;
     }
 }
 
@@ -439,7 +439,7 @@ bool Renderer::UpdateViewport(int viewport)
         isPicked = false;
         currentViewport = viewport;
         Pressed();
-		scn->UnPick();
+        scn->UnPick();
         return false;
     }
     return true;
@@ -447,23 +447,23 @@ bool Renderer::UpdateViewport(int viewport)
 
 void Renderer::MouseProccessing(int button, int mode, int viewportIndx)
 {
-    if (isPicked || button == 1 || button == 2)
+    if (isPicked || button == 0)
     {
 
-		if(button == 2)
-			scn->MouseProccessing(button, zrel, zrel, CalcMoveCoeff(mode & 7, viewports[viewportIndx].w()), cameras[0]->MakeTransd(), viewportIndx);
-		else
-			scn->MouseProccessing(button, xrel, yrel, CalcMoveCoeff(mode & 7, viewports[viewportIndx].w()), cameras[0]->MakeTransd(), viewportIndx);
+        if (button == 2)
+            scn->MouseProccessing(button, zrel, zrel, CalcMoveCoeff(mode & 7, viewports[viewportIndx].w()), cameras[0]->MakeTransd(), viewportIndx);
+        else
+            scn->MouseProccessing(button, xrel, yrel, CalcMoveCoeff(mode & 7, viewports[viewportIndx].w()), cameras[0]->MakeTransd(), viewportIndx);
     }
 
 }
 
 float Renderer::CalcMoveCoeff(int cameraIndx, int width)
 {
-    return cameras[cameraIndx]->CalcMoveCoeff(depth,width);
+    return cameras[cameraIndx]->CalcMoveCoeff(depth, width);
 }
 
-IGL_INLINE void Renderer::Init(igl::opengl::glfw::Viewer* scene, std::list<int>xViewport, std::list<int>yViewport,int pickingBits,igl::opengl::glfw::imgui::ImGuiMenu *_menu)
+IGL_INLINE void Renderer::Init(igl::opengl::glfw::Viewer* scene, std::list<int>xViewport, std::list<int>yViewport, int pickingBits, igl::opengl::glfw::imgui::ImGuiMenu* _menu)
 {
     scn = scene;
     menu = _menu;
@@ -486,9 +486,9 @@ IGL_INLINE void Renderer::Init(igl::opengl::glfw::Viewer* scene, std::list<int>x
 
             if ((1 << indx) & pickingBits) {
                 DrawInfo* new_draw_info = new DrawInfo(indx, 0, 0, 0,
-                                                  1 | inAction | depthTest | stencilTest | passStencil | blackClear |
-                                                  clearStencil | clearDepth | onPicking ,
-                                                  next_property_id);
+                    1 | inAction | depthTest | stencilTest | passStencil | blackClear |
+                    clearStencil | clearDepth | onPicking,
+                    next_property_id);
                 next_property_id <<= 1;
                 for (auto& data : scn->data_list)
                 {
@@ -496,7 +496,7 @@ IGL_INLINE void Renderer::Init(igl::opengl::glfw::Viewer* scene, std::list<int>x
                 }
                 drawInfos.emplace_back(new_draw_info);
             }
-            DrawInfo* temp = new DrawInfo(indx, 0, 1, 0, (indx < 1) | depthTest | clearDepth ,next_property_id);
+            DrawInfo* temp = new DrawInfo(indx, 0, 1, 0, (indx < 1) | depthTest | clearDepth, next_property_id);
             next_property_id <<= 1;
             drawInfos.emplace_back(temp);
             indx++;
@@ -508,8 +508,8 @@ IGL_INLINE void Renderer::Init(igl::opengl::glfw::Viewer* scene, std::list<int>x
         menu->callback_draw_viewer_menu = [&]()
         {
             // Draw parent menu content
-            auto temp = Eigen::Vector4i(0,0,0,0); // set imgui to min size and top left corner
-            menu->draw_viewer_menu(scn,cameras,temp, drawInfos);
+            auto temp = Eigen::Vector4i(0, 0, 0, 0); // set imgui to min size and top left corner
+            menu->draw_viewer_menu(scn, cameras, temp, drawInfos);
         };
     }
 }

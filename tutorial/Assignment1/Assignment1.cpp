@@ -28,11 +28,14 @@ void Assignment1::Init()
 	AddShader("shaders/pickingShader");
 	AddShader("shaders/newtonShader");
 	currentCoefIndex = 0;
-	zoomFactor = 1.0;
-	zoomNormalized = 1.0 / zoomFactor;
+	zoomNormalized = 1.0;
 	translateX = 0.0;
 	translateY = 0.0;
 	iterationsNum = 20;
+	xOld = 0;
+	yOld = 0;
+	xRel = 0;
+	yRel = 0;
 	coeffs = Eigen::Vector4f(1, 1, 0, -1);
 	roots = FindCubicRoots();
 
@@ -72,12 +75,24 @@ void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 }
 
 
-void Assignment1::WhenRotate()
+float Assignment1::UpdatePosition(float xpos, float ypos)
+{
+	xRel = xOld - xpos;
+	yRel = yOld - ypos;
+	xOld = xpos;
+	yOld = ypos;
+	return yRel;
+}
+
+void Assignment1::WhenRotate(const Eigen::Matrix4d& preMat, float dx, float dy)
 {
 }
 
-void Assignment1::WhenTranslate(const Eigen::Matrix4d& preMat, float dx, float dy) 
+void Assignment1::WhenTranslate() 
 {
+	float movCoeff = 2.0f;
+	float dx = -xRel / movCoeff;
+	float dy = yRel / movCoeff;
 	TranslateX(dx);
 	TranslateY(-dy);
 }
@@ -192,7 +207,10 @@ void Assignment1::TranslateY(float dy)
 }
 void Assignment1::ChangeZoomBy(float dz) 
 {
-	zoomNormalized /= 1 + SCALE_SENSITIVITY * dz;
+	float nextZoom = zoomNormalized / (1 + SCALE_SENSITIVITY * dz);
+	if (nextZoom >= 0){
+		zoomNormalized = nextZoom;
+	}
 }
 
 Assignment1::~Assignment1(void)

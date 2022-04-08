@@ -33,9 +33,9 @@ vec2 getCoordinatesFromScreen(vec2 texCoord, vec4 coordinateRange){
 
 void main()
 {
-	vec4 coordRange = vec4(-2.0,2.0,-2.0,2.0)*zoomFactor + vec4(vec2(translateX), vec2(-translateY));
+	vec4 coordRange = vec4(-1.0,1.0,-1.0,1.0)*zoomFactor + vec4(vec2(translateX), vec2(-translateY));
 	vec2 pos = getCoordinatesFromScreen(texCoord0, coordRange); //vec2(position0.x, position0.y);
-	float epsilon = 1e-4; // TODO: times the length of the interval
+	float epsilon = 1e-4 * 2 * zoomFactor; // TODO: times the length of the interval
 	vec2 z = pos;
 	int i;
 	for (i = 0; i < iterationNum; i++) {
@@ -44,10 +44,10 @@ void main()
 	    vec2 f = coeffs[0] * cubicZ + coeffs[1] * quadraticZ + coeffs[2] * z + vec2(coeffs[3], 0);
 		vec2 fd = coeffs[0] * 3 * quadraticZ + coeffs[1] * 2 * z + vec2(coeffs[2], 0);
 		vec2 divided = complex_div(f, fd);
-		z = z - divided;
 		if (length(divided) < epsilon) {
 			break;
 		}
+		z = z - divided;
 	}
 	vec4[3] colors = vec4[3](colorA, colorB, colorC);
 	vec4[3] roots = vec4[3](rootA, rootB, rootC);
