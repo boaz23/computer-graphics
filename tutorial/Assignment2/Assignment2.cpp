@@ -23,60 +23,13 @@ Assignment2::Assignment2()
 
 void Assignment2::Init()
 {		
-	unsigned int texIDs[3] = { 0 , 1, 2};
-	unsigned int slots[3] = { 0 , 1, 2 };
-	
-	AddShader("shaders/pickingShader");
-	AddShader("shaders/cubemapShader");
-	AddShader("shaders/basicShader");
-	AddShader("shaders/pickingShader");
-	
-	AddTexture("textures/box0.bmp",2);
-	AddTexture("textures/cubemaps/Daylight Box_", 3);
-	AddTexture("textures/grass.bmp", 2);
-	//AddTexture("../res/textures/Cat_bump.jpg", 2);
+	SceneParser("scene.txt", &sceneData);
+	AddShader("shaders/ourRaytracingShader");
+	AddShape(Plane, -1, TRIANGLES,0);
 
-	AddMaterial(texIDs,slots, 1);
-	AddMaterial(texIDs+1, slots+1, 1);
-	AddMaterial(texIDs + 2, slots + 2, 1);
-	
-	AddShape(Cube, -2, TRIANGLES);
-	AddShape(Tethrahedron, -1, TRIANGLES);
-	
-	AddShape(Octahedron, -1, TRIANGLES);
-	AddShape(Octahedron, 2, LINE_LOOP);
-    AddShape(Tethrahedron, 1, LINE_LOOP);
-
-//    AddShape(Cube, -1, TRIANGLES);
-	AddShapeFromFile("data/sphere.obj", -1, TRIANGLES);
-	//AddShapeFromFile("../res/objs/Cat_v1.obj", -1, TRIANGLES);
-	AddShape(Plane, -2, TRIANGLES,3);
-
-	SetShapeShader(1, 2);
-	SetShapeShader(2, 2);
-	SetShapeShader(5, 2);
-	SetShapeShader(6, 3);
-	SetShapeMaterial(1, 0);
-	SetShapeMaterial(0, 1);
-	SetShapeMaterial(2, 2);
-	SetShapeMaterial(5, 2);
-	SetShapeMaterial(6, 0);
+	SetShapeShader(0, 0);
 	pickedShape = 0;
-	float s = 60;
-	ShapeTransformation(scaleAll, s,0);
-	pickedShape = 1;
-	ShapeTransformation(xTranslate, 10,0);
-
-	pickedShape = 5;
-	ShapeTransformation(xTranslate, -10,0);
-	pickedShape = 6;
-	ShapeTransformation(zTranslate, -1.1,0);
-	pickedShape = -1;
 	SetShapeStatic(0);
-	SetShapeStatic(6);
-
-	//SetShapeViewport(6, 1);
-//	ReadPixel(); //uncomment when you are reading from the z-buffer
 }
 
 void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx)
@@ -86,31 +39,26 @@ void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	int g = ((shapeIndx+1) & 0x0000FF00) >>  8;
 	int b = ((shapeIndx+1) & 0x00FF0000) >> 16;
 
-
-		s->Bind();
+	//uniform vec4 eye;
+	//uniform vec4 ambient;
+	//uniform vec4[20] objects;
+	//uniform vec4[20] objColors;
+	//uniform vec4[10] lightsDirection;
+	//uniform vec4[10] lightsIntensity;
+	//uniform vec4[10] lightsPosition;
+	//uniform ivec4 sizes;
+	s->Bind();
+	s->SetUniform4f("eye", sceneData.eye(0), sceneData.eye(1), sceneData.eye(2), sceneData.eye(3));	
+	s->SetUniform4f("ambient", sceneData.ambient(0), sceneData.ambient(1), sceneData.ambient(2), sceneData.ambient(3));
+	s->SetUniform4fv("objects", sceneData.objects.data(), sceneData.objects.size());
+	s->SetUniform4fv("objColors", sceneData.colors.data(), sceneData.colors.size());
+	s->SetUniform4fv("lightsDirection", sceneData.directions.data(), sceneData.directions.size());
+	s->SetUniform4fv("lightsIntensity", sceneData.intensities.data(), sceneData.intensities.size());
+	s->SetUniform4fv("lightsPosition", sceneData.lights.data(), sceneData.lights.size());
+	s->SetUniform4i("sizes", sceneData.sizes(0), sceneData.sizes(1), sceneData.sizes(2), sceneData.sizes(3));
 	s->SetUniformMat4f("Proj", Proj);
 	s->SetUniformMat4f("View", View);
 	s->SetUniformMat4f("Model", Model);
-	if (data_list[shapeIndx]->GetMaterial() >= 0 && !materials.empty())
-	{
-//		materials[shapes[pickedShape]->GetMaterial()]->Bind(textures);
-		BindMaterial(s, data_list[shapeIndx]->GetMaterial());
-	}
-	if (shaderIndx == 0)
-		s->SetUniform4f("lightColor", r / 255.0f, g / 255.0f, b / 255.0f, 0.0f);
-	else
-		s->SetUniform4f("lightColor", 4/100.0f, 60 / 100.0f, 99 / 100.0f, 0.5f);
-	//textures[0]->Bind(0);
-
-	
-	
-
-	//s->SetUniform1i("sampler2", materials[shapes[pickedShape]->GetMaterial()]->GetSlot(1));
-	//s->SetUniform4f("lightDirection", 0.0f , 0.0f, -1.0f, 0.0f);
-//	if(shaderIndx == 0)
-//		s->SetUniform4f("lightColor",r/255.0f, g/255.0f, b/255.0f,1.0f);
-//	else 
-//		s->SetUniform4f("lightColor",0.7f,0.8f,0.1f,1.0f);
 	s->Unbind();
 }
 
@@ -143,5 +91,6 @@ void Assignment2::ScaleAllShapes(float amt,int viewportIndx)
 
 Assignment2::~Assignment2(void)
 {
+
 }
 
