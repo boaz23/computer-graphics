@@ -143,48 +143,117 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
     return min(color,vec3(1.0,1.0,1.0));
 }
 
+void findIntersection(out float dist, out vec3 normal, out vec3 intersectionPoint, vec4 object, vec3 p0, vec3 ray){
+    dist = -1.0;
+    normal = vec3(-1);
+    intersectionPoint = vec3(-1);
+    if(object.w <= 0){
+        //plane
+        normal = normalize(object.xyz);
+        dist = -(dot(normal, p0) + object.w) / dot(normal, ray);
+        intersectionPoint = p0 + ray*dist;
+    }
+    else{
+        //sphere
+        vec3 L = object.xyz - p0;
+        float tm = dot(L, ray);
+        float dSquared = pow(length(L), 2) - pow(tm, 2);
+        if(dSquared <= pow(object.w, 2)){
+            float th = sqrt(pow(object.w, 2) - dSquared);
+            if(tm - th > 0){
+                if(tm + th > 0){
+                    dist = min(tm - th, tm + th);
+                }
+                else{
+                    dist = tm - th;
+                }
+            }
+            else{
+                dist = tm + th;
+            }
+            intersectionPoint = p0 + ray*dist;
+            normal = normalize(intersectionPoint - object.xyz);
+        }
+    }
+}
+
+void findFirstIntersectingObject(out int intersectionIndex, out float intersectionDistance, out vec3 intersectionPoint, out vec3 intersectionNormal, vec3 p0, vec3 ray){
+    float minDist = -1;
+    int minObjectIndex = -1;
+    vec3 minInterPoint = vec3(-1);
+    vec3 minInterNormal = vec3(-1);
+    for(int i = 0; i<sizes[0]; i++){
+        vec4 curObject = objects[i];
+        float dist;
+        vec3 interNormal, interPoint;
+        findIntersection(dist, interNormal, interPoint, curObject, p0, ray);
+        if(dist > 0.01 && (dist < minDist || minObjectIndex == -1)){
+            minDist = dist;
+            minObjectIndex = i;
+            minInterPoint = interPoint;
+            minInterNormal = interNormal;
+        }
+    }
+    intersectionIndex = minObjectIndex;
+    intersectionDistance = minDist;
+    intersectionPoint = minInterPoint;
+    intersectionNormal = minInterNormal;
+}
+
 void main()
 {  
     vec3 vRay = normalize(position0.xyz - eye.xyz);
-    float minDist = 0;
-    int minObjectIndex = -1;
-    for(int i = 0; i<sizes[0]; i++){
-        vec4 curObject = objects[i];
-        float dist = -1;
-        if(curObject[3] <= 0){
-            //plane
-            dist = -(dot(normalize(curObject.xyz), eye.xyz) + curObject.w) / dot(normalize(curObject.xyz), vRay);
-        }
-        else{
-            //sphere
-            vec3 L = curObject.xyz - eye.xyz;
-            float tm = dot(L, vRay);
-            float dSquared = pow(length(L), 2) - pow(tm, 2);
-            if(dSquared <= pow(curObject.w, 2)){
-                float th = sqrt(pow(curObject.w, 2) - dSquared);
-                if(tm - th > 0){
-                    if(tm + th > 0){
-                        dist = min(tm - th, tm + th);
-                    }
-                    else{
-                        dist = tm - th;
-                    }
-                }
-                else{
-                    dist = tm + th;
-                }
-            }
-        }
-        if(dist > 0 && (dist < minDist || minObjectIndex == -1)){
-            minDist = dist;
-            minObjectIndex = i;
-        }
-    }
-    if(minObjectIndex == -1){
-        gl_FragColor = vec4(1, 1, 1, 1);
+    int interObject;
+    float interDist;
+    vec3 interPoint, interNormal;
+    findFirstIntersectingObject(interObject, interDist, interPoint, interNormal, eye.xyz, vRay);
+    if(interObject == -1){
+        gl_FragColor = vec4(1, 0, 0, 1);
     }
     else{
-        gl_FragColor = objColors[minObjectIndex];
+        vec4 color = objColors[interObject] * ambient;
+        int currentSpotlightIdx = 0;
+        for(int i = 0; i < sizes[1]; i++){
+            vec4 curLight = lightsDirection[i];
+            vec3 rayToLight;
+            float cosBetween;
+            vec4 intensity;
+            if(curLight.w < 0.5){
+                //directional
+                rayToLight = -curLight.xyz;
+                intensity = lightsIntensity[i] * dot(normalize(rayToLight), interNormal);
+            }
+            else{
+                //spotlight
+                rayToLight = lightsPosition[currentSpotlightIdx].xyz - interPoint;
+                float cosBetween = dot(normalize(-rayToLight), normalize(curLight.xyz));
+                if(cosBetween <= lightsPosition[currentSpotlightIdx].w){
+                    // in range
+                    intensity = lightsIntensity[i] * cosBetween;
+                }
+                else{
+                    currentSpotlightIdx += 1;
+                    continue;
+                }
+                currentSpotlightIdx += 1;
+            }
+            int blockingObject;
+            float blockingDist;
+            vec3 blockingPoint, blockingNormal;
+            findFirstIntersectingObject(blockingObject, blockingDist, blockingPoint, blockingNormal, interPoint, rayToLight);
+            if(blockingDist > 0 && blockingObject != interObject && (curLight.w < 0.5 || blockingDist < length(rayToLight))){
+                continue;
+            }
+            float x = interPoint.x;
+            float y = interPoint.y;
+/*            if(objects[interObject].w <= 0 && (((mod(int(1.5*x),2) == mod(int(1.5*y),2)) && ((x>0 && y>0) || (x<0 && y<0))) || ((mod(int(1.5*x),2) != mod(int(1.5*y),2) && ((x<0 && y>0) || (x>0 && y<0))))))
+                gl_FragColor = vec4(colorCalc(indx,p,v,0.5),1);
+        else 
+            gl_FragColor = vec4(colorCalc(indx,p,v,1.0),1);      
+            */
+            color += objColors[interObject] * dot(interNormal, normalize(rayToLight)) * intensity;
+        }
+        gl_FragColor = color;
     }
 }
  
