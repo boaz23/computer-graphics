@@ -25,8 +25,6 @@ Assignment1::Assignment1()
 
 void Assignment1::Init()
 {
-	AddShader("shaders/newtonShader");
-	currentCoefIndex = 0;
 	zoomNormalized = 1.0;
 	translateX = 0.0;
 	translateY = 0.0;
@@ -35,9 +33,11 @@ void Assignment1::Init()
 	yOld = 0;
 	xRel = 0;
 	yRel = 0;
+	currentCoefIndex = 0;
 	coeffs = Eigen::Vector4f(1, 1, 0, -1);
 	roots = FindCubicRoots();
 
+	AddShader("shaders/newtonShader");
 	AddShape(Plane, -1, TRIANGLES, 0);
 	SetShapeShader(0, 0);
 	SetShapeStatic(0);
@@ -46,9 +46,6 @@ void Assignment1::Init()
 void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx)
 {
 	Shader* s = shaders[shaderIndx];
-	int r = ((shapeIndx + 1) & 0x000000FF) >> 0;
-	int g = ((shapeIndx + 1) & 0x0000FF00) >> 8;
-	int b = ((shapeIndx + 1) & 0x00FF0000) >> 16;
 	s->SetUniform1i("iterationNum", iterationsNum);
 	s->SetUniform4f("coeffs", coeffs(0), coeffs(1), coeffs(2), coeffs(3));
 	s->SetUniform4f("rootA", roots(0).real(), roots(0).imag(), 0, 0);
@@ -63,10 +60,6 @@ void Assignment1::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	s->SetUniformMat4f("Proj", Proj);
 	s->SetUniformMat4f("View", View);
 	s->SetUniformMat4f("Model", Model);
-	if (data_list[shapeIndx]->GetMaterial() >= 0 && !materials.empty())
-	{
-		BindMaterial(s, data_list[shapeIndx]->GetMaterial());
-	}
 	s->Unbind();
 }
 
