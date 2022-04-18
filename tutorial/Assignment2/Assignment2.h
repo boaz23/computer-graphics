@@ -1,5 +1,6 @@
 #pragma once
 #include "igl/opengl/glfw/Viewer.h"
+#include <tutorial/Assignment2/sceneParser.h>
 
 class Assignment2 : public igl::opengl::glfw::Viewer
 {
@@ -16,6 +17,8 @@ public:
 	void ScaleAllShapes(float amt, int viewportIndx);
 	
 	~Assignment2(void);
+private:
+	SceneData sceneData;
 };
 
 
