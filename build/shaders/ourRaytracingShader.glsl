@@ -187,7 +187,7 @@ void findFirstIntersectingObject(out int intersectionIndex, out float intersecti
         float dist;
         vec3 interNormal, interPoint;
         findIntersection(dist, interNormal, interPoint, curObject, p0, ray);
-        if(dist > 0.01 && (dist < minDist || minObjectIndex == -1)){
+        if(dist > 1.5e-6 && (dist < minDist || minObjectIndex == -1)){
             minDist = dist;
             minObjectIndex = i;
             minInterPoint = interPoint;
