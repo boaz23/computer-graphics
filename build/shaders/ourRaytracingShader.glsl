@@ -222,7 +222,7 @@ vec4 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
             rayToLight = -lightDirection;
             intensity = lightIntensity;
             // TODO: why without this it looks bad?
-            intensity *= dot(normalize(rayToLight), pointNormal);
+//            intensity *= dot(normalize(rayToLight), pointNormal);
         }
         else {
             //spotlight
@@ -247,7 +247,11 @@ vec4 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
         float blockingDist;
         vec3 blockingPoint, blockingNormal;
         findFirstIntersectingObject(blockingObject, blockingDist, blockingPoint, blockingNormal, point, rayToLight);
-        if (blockingDist > 0 && blockingObject != objectIndex && (curLight.w < 0.5 || blockingDist < length(rayToLight))) {
+        if (blockingDist > 0
+            && blockingObject != objectIndex
+            && (curLight.w < 0.5 || blockingDist < length(rayToLight))
+//            && objects[blockingObject].w > 0
+        ) {
             continue;
         }
         
