@@ -216,11 +216,10 @@ vec4 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
 
         vec3 rayToLight;
         float cosBetween;
-        vec4 intensity;
+        vec4 intensity = lightIntensity;
         if(curLight.w < 0.5) {
             //directional
             rayToLight = -lightDirection;
-            intensity = lightIntensity;
             // TODO: why without this it looks bad?
             intensity *= dot(normalize(rayToLight), pointNormal);
         }
@@ -230,11 +229,12 @@ vec4 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
             vec3 spotlightPosition = spotlightInfo.xyz;
             float spotlightHalfApertureCos = spotlightInfo.w;
             rayToLight = spotlightPosition - point;
+//            float cosBetween = abs(dot(normalize(-rayToLight), normalize(lightDirection)));
             float cosBetween = dot(normalize(-rayToLight), normalize(lightDirection));
             if(cosBetween <= spotlightHalfApertureCos) {
                 // in range
                 // TODO: do we need to?
-                intensity = lightIntensity * cosBetween;
+                intensity *= cosBetween;
             }
             else {
                 currentSpotlightIdx += 1;
@@ -248,7 +248,7 @@ vec4 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
         vec3 blockingPoint, blockingNormal;
         findFirstIntersectingObject(blockingObject, blockingDist, blockingPoint, blockingNormal, point, rayToLight);
         if (blockingDist > 0
-            && blockingObject != objectIndex
+//            && blockingObject != objectIndex
             && (curLight.w < 0.5 || blockingDist < length(rayToLight))
 //            && objects[blockingObject].w > 0
         ) {
