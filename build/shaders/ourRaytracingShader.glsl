@@ -73,19 +73,19 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
             v = normalize(lightsDirection[i].xyz);
            //  v = normalize(vec3(0.0,0.5,-1.0));
             float t = intersection(indx,sourcePoint,-v);
-
+            
             // TODO: tamir, why??? planes are see through?
-            if(indx < 0) //no intersection
+            if(indx < 0 || objects[indx].w<=0) //no intersection
              {
                // vec3 u = normalize(sourcePoint - eye.xyz);
                 if(objects[sourceIndx].w > 0) //sphere
                 {
                     
-                    vec3 n = normalize( sourcePoint - objects[sourceIndx].xyz);
+                    vec3 n = -normalize( sourcePoint - objects[sourceIndx].xyz);
                     vec3 refl = normalize(reflect(v,n));
-                    if(dot(-v,n)>0.0 )
-                        color+= max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,-u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0));  //specular  
-                    color+= max(1 * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(-v,n),vec3(0.0,0.0,0.0)) ;  //difuse
+                    if(dot(v,n)>0.0 )
+                        color+= max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0));  //specular  
+                    color+= max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(v,n),vec3(0.0,0.0,0.0)) ;  //difuse
                     //        color = vec3(1.0,1.0,0.0);
                 }
                 else  //plane
@@ -93,8 +93,8 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
                     vec3 n = normalize(objects[sourceIndx].xyz);
                     vec3 refl = normalize(reflect(v,n));
                     
-                    color = min(color + max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,-u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0)); //specular
-                    color = min( color + max(1 * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(-v,n),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0)); //difuse
+                    color = min(color + max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0)); //specular
+                    color = min( color + max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(v,n),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0)); //difuse
                  
                   //      color = vec3(1.0,1.0,0.0);
                 }
@@ -119,11 +119,11 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
                 {
                     if(objects[sourceIndx].w > 0) //sphere
                     {
-                        vec3 n = normalize( sourcePoint - objects[sourceIndx].xyz);
+                        vec3 n = -normalize( sourcePoint - objects[sourceIndx].xyz);
                         vec3 refl = normalize(reflect(v,n));
-                        if(dot(-v,n)>0.0)
-                          color+=max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,-u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)); //specular
-                        color+= max(1 * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(-v,n),vec3(0.0,0.0,0.0));
+                        if(dot(v,n)>0.0)
+                          color+=max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)); //specular
+                        color+= max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(v,n),vec3(0.0,0.0,0.0));
                       //          color = vec3(1.0,1.0,0.0);            
                     }
                     else  //plane
@@ -131,8 +131,8 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
 
                         vec3 n = normalize(objects[sourceIndx].xyz);
                         vec3 refl = normalize(reflect(v,n)); //specular
-                        color = min(color + max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,-u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0));
-                        color = min(color + max(1 * objColors[sourceIndx].rgb * lightsIntensity[i].rgb *dot(-v,n),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0));
+                        color = min(color + max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0));
+                        color = min(color + max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb *dot(v,n),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0));
                        // color = vec3(1.0,1.0,0.0);
                     }
                 }
@@ -207,10 +207,88 @@ void findFirstIntersectingObject(out int intersectionIndex, out float intersecti
     intersectionNormal = minInterNormal;
 }
 
+float squareMod(float c, float factor, float sideLength) {
+    return mod(int((factor * c) / sideLength), 2);
+}
+
+struct PlaneMap {
+    vec3 b1;
+    vec3 b2;
+    vec3 anchor;
+};
+
+PlaneMap mapPlaneToXyPlane(vec4 plane) {
+    // See https://stackoverflow.com/questions/8780646/mapping-coordinates-from-plane-given-by-normal-vector-to-xy-plane.
+
+    vec3 planeNormal = plane.xyz;
+    float d = plane.w;
+
+    vec3 b1, b2;
+    if (plane.z == 0) {
+        if (plane.y == 0) {
+            float x = -d / plane.x;
+            b1 = vec3(x, 0, 1);
+            b2 = vec3(x, 1, 0);
+        }
+        else if (plane.x == 0) {
+            float y = -d / plane.y;
+            b1 = vec3(1, y, 0);
+            b2 = vec3(0, y, 1);
+        }
+        else {
+            // a*x + b*y + d = 0 -->
+            // y = -(a/b)*x - d/b
+
+            // get the perpendicular line in a 2D plane which goes through the origin
+            float m = plane.y / plane.x;
+            // find the intersection point between the above line and `y = m*x`
+            float x = -(d/plane.y) / (m + 1/m);
+            float y = m * x;
+            b1 = vec3(x, y, 1);
+            vec2 b2_2d = vec2(x, y) + normalize(vec2(-plane.y, plane.x));
+            b2 = vec3(b2_2d, 0);
+        }
+    }
+    else {
+        b1 = vec3(1, 0, -plane.y / plane.z);
+        b2 = vec3(0, 1, -plane.x / plane.z);
+    }
+    b1 = normalize(b1);
+    b2 = normalize(b2);
+
+    vec3 anchor = (d/dot(planeNormal, planeNormal)) * planeNormal;
+    return PlaneMap(b1, b2, anchor);
+}
+
+vec3 applyPlaneMap(PlaneMap map, vec3 point) {
+    mat2x3 coefficients = mat2x3(map.b1, map.b2);
+    mat3x2 coefficientsT = transpose(coefficients);
+    mat3x2 leftInverse = inverse(coefficientsT * coefficients) * coefficientsT;
+    return vec3(leftInverse * point, 0);
+}
+
+bool isDarkSquare(vec3 point) {
+    return (mod(int(1.5 * point.x), 2) == mod(int(1.5 * point.y), 2)) == ((point.x < 0) == (point.y < 0));
+}
+
 vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objectIndex) {
     vec3 objectColor = objColors[objectIndex].xyz;
     float shinniness = objColors[objectIndex].w;
+    vec4 object = objects[objectIndex];
     vec3 color = objectColor * ambient.xyz;
+    
+    vec3 specularFactors = vec3(0.7);
+    vec3 diffuseFactors = vec3(1);
+    if (object.w <= 0) {
+        float squareSideLength = 1 / 1.5;
+        float d = object.w;
+        diffuseFactors = vec3(1);
+        PlaneMap map = mapPlaneToXyPlane(object);
+        if (isDarkSquare(applyPlaneMap(map, point))) {
+            diffuseFactors = vec3(0.5);
+        }
+    }
+
     int currentSpotlightIdx = -1;
     for(int i = 0; i < sizes[1]; i++) {
         vec4 curLight = lightsDirection[i];
@@ -258,21 +336,20 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
             blockingObject >= 0
 //            && blockingObject != objectIndex
             && ((blockingObject == objectIndex) != (objects[blockingObject].w > 0)) // A plane cannot block itself and a sphere can
-            && (curLight.w < 0.5 || blockingDist < length(vPointToLightUnnormalized) // Obly block when either if the light is directional or if the 'blocking' object appears between the point and the spotlight
-        )
+            && (curLight.w < 0.5 || blockingDist < length(vPointToLightUnnormalized)) // Obly block when either if the light is directional or if the 'blocking' object appears between the point and the spotlight
 //            && objects[blockingObject].w > 0
         ) {
             continue;
         }
-        
+
         // TODO: why this max?
-        vec3 diffuse = objectColor * intensity * dot(pointNormal, vPointToLight);
+        vec3 diffuse = diffuseFactors * objectColor * intensity * dot(pointNormal, vPointToLight);
         diffuse = max(diffuse, vec3(0));
         vec3 refl = normalize(reflect(-vPointToLight, pointNormal));
-        vec3 specular = 0.7 * intensity * pow(dot(-vRay, refl), shinniness);
+        vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), shinniness);
         // TODO: why this max?
         specular = max(specular, vec3(0));
-        if(objects[objectIndex].w > 0) {
+        if(object.w > 0) {
             //sphere
 
             // TODO: why this if?
@@ -290,6 +367,7 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
             color = min(color + diffuse, vec3(1));
         }
     }
+
     return color;
 }
 
@@ -311,7 +389,11 @@ void main()
     }
     else {
         color = calculateColor_noTracing(vRay, interPoint, interNormal, interObject);
-//        color = colorCalc(interObject, interPoint, vRay, 1), 1;
+//        float diffuseFactor = 1;
+//        if (objects[interObject].w <= 0 && isDarkSquare(interPoint)) {
+//            diffuseFactor = 0.5;
+//        }
+//        color = colorCalc(interObject, interPoint, vRay, diffuseFactor), 1;
 //        color = vec4(1, 0, 0, 1);
     }
     outColor = vec4(color, 1);
