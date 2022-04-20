@@ -53,7 +53,11 @@ SceneParser::SceneParser(const std::string& fileName, SceneData* data)
         while(file.good())
         {
             getline(file, line);
-        
+
+            if (!line.empty() && line[0] == '#') {
+                continue;
+            }
+
             unsigned int lineLength = line.length();
             
             if(lineLength < 2)
