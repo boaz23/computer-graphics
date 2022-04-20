@@ -12,6 +12,8 @@ uniform ivec4 sizes;
 in vec3 position0;
 in vec3 normal0;
 
+layout (location = 0) out vec4 outColor;
+
 float intersection(inout int sourceIndx,vec3 sourcePoint,vec3 v)
 {
     float tmin = 1.0e10;
@@ -73,17 +75,17 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
             float t = intersection(indx,sourcePoint,-v);
 
             // TODO: tamir, why??? planes are see through?
-            if(indx < 0 || objects[indx].w<=0) //no intersection
+            if(indx < 0) //no intersection
              {
                // vec3 u = normalize(sourcePoint - eye.xyz);
                 if(objects[sourceIndx].w > 0) //sphere
                 {
                     
-                    vec3 n = -normalize( sourcePoint - objects[sourceIndx].xyz);
+                    vec3 n = normalize( sourcePoint - objects[sourceIndx].xyz);
                     vec3 refl = normalize(reflect(v,n));
-                    if(dot(v,n)>0.0 )
-                        color+= max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0));  //specular  
-                    color+= max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(v,n),vec3(0.0,0.0,0.0)) ;  //difuse
+                    if(dot(-v,n)>0.0 )
+                        color+= max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,-u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0));  //specular  
+                    color+= max(1 * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(-v,n),vec3(0.0,0.0,0.0)) ;  //difuse
                     //        color = vec3(1.0,1.0,0.0);
                 }
                 else  //plane
@@ -91,8 +93,8 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
                     vec3 n = normalize(objects[sourceIndx].xyz);
                     vec3 refl = normalize(reflect(v,n));
                     
-                    color = min(color + max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0)); //specular
-                    color = min( color + max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(v,n),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0)); //difuse
+                    color = min(color + max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,-u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0)); //specular
+                    color = min( color + max(1 * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(-v,n),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0)); //difuse
                  
                   //      color = vec3(1.0,1.0,0.0);
                 }
@@ -117,11 +119,11 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
                 {
                     if(objects[sourceIndx].w > 0) //sphere
                     {
-                        vec3 n = -normalize( sourcePoint - objects[sourceIndx].xyz);
+                        vec3 n = normalize( sourcePoint - objects[sourceIndx].xyz);
                         vec3 refl = normalize(reflect(v,n));
-                        if(dot(v,n)>0.0)
-                          color+=max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)); //specular
-                        color+= max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(v,n),vec3(0.0,0.0,0.0));
+                        if(dot(-v,n)>0.0)
+                          color+=max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,-u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)); //specular
+                        color+= max(1 * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(-v,n),vec3(0.0,0.0,0.0));
                       //          color = vec3(1.0,1.0,0.0);            
                     }
                     else  //plane
@@ -129,8 +131,8 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
 
                         vec3 n = normalize(objects[sourceIndx].xyz);
                         vec3 refl = normalize(reflect(v,n)); //specular
-                        color = min(color + max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0));
-                        color = min(color + max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb *dot(v,n),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0));
+                        color = min(color + max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,-u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0));
+                        color = min(color + max(1 * objColors[sourceIndx].rgb * lightsIntensity[i].rgb *dot(-v,n),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0));
                        // color = vec3(1.0,1.0,0.0);
                     }
                 }
@@ -205,66 +207,77 @@ void findFirstIntersectingObject(out int intersectionIndex, out float intersecti
     intersectionNormal = minInterNormal;
 }
 
-vec4 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objectIndex) {
-    vec4 objectColor = objColors[objectIndex];
-    vec4 color = objectColor * ambient;
-    int currentSpotlightIdx = 0;
+vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objectIndex) {
+    vec3 objectColor = objColors[objectIndex].xyz;
+    float shinniness = objColors[objectIndex].w;
+    vec3 color = objectColor * ambient.xyz;
+    int currentSpotlightIdx = -1;
     for(int i = 0; i < sizes[1]; i++) {
         vec4 curLight = lightsDirection[i];
         vec3 lightDirection = curLight.xyz;
         vec4 lightIntensity = lightsIntensity[i];
 
-        vec3 rayToLight;
+        vec3 vPointToLight;
+        vec3 vPointToLightUnnormalized;
         float cosBetween;
-        vec4 intensity = lightIntensity;
+        vec3 intensity = lightIntensity.xyz;
+//        intensity *= dot(vPointToLight, pointNormal);
         if(curLight.w < 0.5) {
             //directional
-            rayToLight = -lightDirection;
+            vPointToLightUnnormalized = -lightDirection;
+            vPointToLight = normalize(vPointToLightUnnormalized);
+            lightDirection = normalize(lightDirection);
             // TODO: why without this it looks bad?
-            intensity *= dot(normalize(rayToLight), pointNormal);
+            intensity *= dot(vPointToLight, pointNormal);
         }
         else {
             //spotlight
+            currentSpotlightIdx += 1;
             vec4 spotlightInfo = lightsPosition[currentSpotlightIdx];
             vec3 spotlightPosition = spotlightInfo.xyz;
             float spotlightHalfApertureCos = spotlightInfo.w;
-            rayToLight = spotlightPosition - point;
-//            float cosBetween = abs(dot(normalize(-rayToLight), normalize(lightDirection)));
-            float cosBetween = dot(normalize(-rayToLight), normalize(lightDirection));
+            lightDirection = normalize(lightDirection);
+            vPointToLightUnnormalized = spotlightPosition - point;
+            vPointToLight = normalize(vPointToLightUnnormalized);
+            float cosBetween = dot(-vPointToLight, lightDirection);
             if(cosBetween <= spotlightHalfApertureCos) {
                 // in range
                 // TODO: do we need to?
                 intensity *= cosBetween;
             }
             else {
-                currentSpotlightIdx += 1;
                 continue;
             }
-            currentSpotlightIdx += 1;
         }
 
         int blockingObject;
         float blockingDist;
         vec3 blockingPoint, blockingNormal;
-        findFirstIntersectingObject(blockingObject, blockingDist, blockingPoint, blockingNormal, point, rayToLight);
-        if (blockingDist > 0
+        findFirstIntersectingObject(blockingObject, blockingDist, blockingPoint, blockingNormal, point, vPointToLight);
+        if (
+            blockingObject >= 0
 //            && blockingObject != objectIndex
-            && (curLight.w < 0.5 || blockingDist < length(rayToLight))
+            && ((blockingObject == objectIndex) != (objects[blockingObject].w > 0)) // A plane cannot block itself and a sphere can
+            && (curLight.w < 0.5 || blockingDist < length(vPointToLightUnnormalized) // Obly block when either if the light is directional or if the 'blocking' object appears between the point and the spotlight
+        )
 //            && objects[blockingObject].w > 0
         ) {
             continue;
         }
         
         // TODO: why this max?
-        vec4 diffuse = max(objectColor * intensity * dot(pointNormal, normalize(rayToLight)), vec4(vec3(0), 1));
-        vec3 refl = normalize(reflect(-normalize(rayToLight), pointNormal));
+        vec3 diffuse = objectColor * intensity * dot(pointNormal, vPointToLight);
+        diffuse = max(diffuse, vec3(0));
+        vec3 refl = normalize(reflect(-vPointToLight, pointNormal));
+        vec3 specular = 0.7 * intensity * pow(dot(-vRay, refl), shinniness);
         // TODO: why this max?
-        vec4 specular = max(vec4(0.7) * intensity * pow(dot(-vRay, refl), objectColor.w), vec4(vec3(0), 1));
+        specular = max(specular, vec3(0));
         if(objects[objectIndex].w > 0) {
             //sphere
 
             // TODO: why this if?
-            if (dot(rayToLight, pointNormal) > 0) {
+            //       and why is the `vPointToLight` should not be negated?
+            if (dot(vPointToLight, pointNormal) > 0) {
                 color += specular;
             }
             color += diffuse;
@@ -273,8 +286,8 @@ vec4 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
             // plane
 
             // TODO: why this min?
-            color = min(color + specular, vec4(1));
-            color = min(color + diffuse, vec4(1));
+            color = min(color + specular, vec3(1));
+            color = min(color + diffuse, vec3(1));
         }
     }
     return color;
@@ -286,21 +299,22 @@ void main()
     int interObject;
     float interDist;
     vec3 interPoint, interNormal;
-    findFirstIntersectingObject(interObject, interDist, interPoint, interNormal, eye.xyz, vRay);
+    findFirstIntersectingObject(interObject, interDist, interPoint, interNormal, position0, vRay);
 //    interObject = -1;
-//    float t = intersection(interObject, eye.xyz, vRay);
+//    float t = intersection(interObject, position0, vRay);
+//    interPoint = position0 + t*vRay;
 
 
-    vec4 color;
+    vec3 color;
     if(interObject == -1) {
-        color = vec4(1, 1, 1, 1);
+        color = vec3(1, 1, 1);
     }
     else {
         color = calculateColor_noTracing(vRay, interPoint, interNormal, interObject);
-//        color = vec4(colorCalc(interObject, interPoint, vRay, 1), 1);
+//        color = colorCalc(interObject, interPoint, vRay, 1), 1;
 //        color = vec4(1, 0, 0, 1);
     }
-    gl_FragColor = color;
+    outColor = vec4(color, 1);
 }
  
 
