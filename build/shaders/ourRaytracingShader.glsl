@@ -72,7 +72,7 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
            //  v = normalize(vec3(0.0,0.5,-1.0));
             float t = intersection(indx,sourcePoint,-v);
 
-            
+            // TODO: tamir, why??? planes are see through?
             if(indx < 0 || objects[indx].w<=0) //no intersection
              {
                // vec3 u = normalize(sourcePoint - eye.xyz);
@@ -149,6 +149,7 @@ void findIntersection(out float dist, out vec3 normal, out vec3 intersectionPoin
     intersectionPoint = vec3(-1);
     if(object.w <= 0) {
         //plane
+
         float d = object.w;
         normal = normalize(object.xyz);
         dist = -(dot(normal, p0) + d) / dot(normal, ray);
@@ -282,14 +283,18 @@ void main()
     float interDist;
     vec3 interPoint, interNormal;
     findFirstIntersectingObject(interObject, interDist, interPoint, interNormal, eye.xyz, vRay);
+//    interObject = -1;
+//    float t = intersection(interObject, eye.xyz, vRay);
+
 
     vec4 color;
     if(interObject == -1) {
-        color = vec4(1, 0, 0, 1);
+        color = vec4(1, 1, 1, 1);
     }
     else {
         color = calculateColor_noTracing(vRay, interPoint, interNormal, interObject);
-//          color = vec4(colorCalc(interObject, interPoint, vRay, 1), 1);
+//        color = vec4(colorCalc(interObject, interPoint, vRay, 1), 1);
+//        color = vec4(1, 0, 0, 1);
     }
     gl_FragColor = color;
 }
