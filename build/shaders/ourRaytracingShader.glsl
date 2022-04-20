@@ -204,7 +204,7 @@ void findFirstIntersectingObject(out int intersectionIndex, out float intersecti
     intersectionNormal = minInterNormal;
 }
 
-vec4 calculateColor_noTracing(vec3 point, vec3 pointNormal, int objectIndex) {
+vec4 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objectIndex) {
     vec4 objectColor = objColors[objectIndex];
     vec4 color = objectColor * ambient;
     int currentSpotlightIdx = 0;
@@ -219,7 +219,9 @@ vec4 calculateColor_noTracing(vec3 point, vec3 pointNormal, int objectIndex) {
         if(curLight.w < 0.5) {
             //directional
             rayToLight = -lightDirection;
-            intensity = lightIntensity * dot(normalize(rayToLight), pointNormal);
+            intensity = lightIntensity;
+            // TODO: why without this it looks bad?
+            intensity *= dot(normalize(rayToLight), pointNormal);
         }
         else {
             //spotlight
@@ -230,6 +232,7 @@ vec4 calculateColor_noTracing(vec3 point, vec3 pointNormal, int objectIndex) {
             float cosBetween = dot(normalize(-rayToLight), normalize(lightDirection));
             if(cosBetween <= spotlightHalfApertureCos) {
                 // in range
+                // TODO: do we need to?
                 intensity = lightIntensity * cosBetween;
             }
             else {
@@ -243,16 +246,31 @@ vec4 calculateColor_noTracing(vec3 point, vec3 pointNormal, int objectIndex) {
         float blockingDist;
         vec3 blockingPoint, blockingNormal;
         findFirstIntersectingObject(blockingObject, blockingDist, blockingPoint, blockingNormal, point, rayToLight);
-        if(blockingDist > 0 && blockingObject != objectIndex && (curLight.w < 0.5 || blockingDist < length(rayToLight))) {
+        if (blockingDist > 0 && blockingObject != objectIndex && (curLight.w < 0.5 || blockingDist < length(rayToLight))) {
             continue;
         }
-//        float x = point.x;
-//        float y = point.y;
-//        if(objects[interObject].w <= 0 && (((mod(int(1.5*x),2) == mod(int(1.5*y),2)) && ((x>0 && y>0) || (x<0 && y<0))) || ((mod(int(1.5*x),2) != mod(int(1.5*y),2) && ((x<0 && y>0) || (x>0 && y<0))))))
-//                gl_FragColor = vec4(colorCalc(indx,p,v,0.5),1);
-//        else 
-//            gl_FragColor = vec4(colorCalc(indx,p,v,1.0),1);
-        color += objectColor * dot(pointNormal, normalize(rayToLight)) * intensity;
+        
+        // TODO: why this max?
+        vec4 diffuse = max(objectColor * intensity * dot(pointNormal, normalize(rayToLight)), vec4(vec3(0), 1));
+        vec3 refl = normalize(reflect(-normalize(rayToLight), pointNormal));
+        // TODO: why this max?
+        vec4 specular = max(vec4(0.7) * intensity * pow(dot(-vRay, refl), objectColor.w), vec4(vec3(0), 1));
+        if(objects[objectIndex].w > 0) {
+            //sphere
+
+            // TODO: why this if?
+            if (dot(rayToLight, pointNormal) > 0) {
+                color += specular;
+            }
+            color += diffuse;
+        }
+        else {
+            // plane
+
+            // TODO: why this min?
+            color = min(color + specular, vec4(1));
+            color = min(color + diffuse, vec4(1));
+        }
     }
     return color;
 }
@@ -270,7 +288,8 @@ void main()
         color = vec4(1, 0, 0, 1);
     }
     else {
-        color = calculateColor_noTracing(interPoint, interNormal, interObject);
+        color = calculateColor_noTracing(vRay, interPoint, interNormal, interObject);
+//          color = vec4(colorCalc(interObject, interPoint, vRay, 1), 1);
     }
     gl_FragColor = color;
 }
