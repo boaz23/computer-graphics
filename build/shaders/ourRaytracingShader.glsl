@@ -250,8 +250,8 @@ PlaneMap mapPlaneToXyPlane(vec4 plane) {
         }
     }
     else {
-        b1 = vec3(1, 0, -plane.y / plane.z);
-        b2 = vec3(0, 1, -plane.x / plane.z);
+        b1 = vec3(1, 0, -plane.x / plane.z);
+        b2 = vec3(0, 1, -plane.y / plane.z);
     }
     b1 = normalize(b1);
     b2 = normalize(b2);
@@ -264,7 +264,7 @@ vec3 applyPlaneMap(PlaneMap map, vec3 point) {
     mat2x3 coefficients = mat2x3(map.b1, map.b2);
     mat3x2 coefficientsT = transpose(coefficients);
     mat3x2 leftInverse = inverse(coefficientsT * coefficients) * coefficientsT;
-    return vec3(leftInverse * point, 0);
+    return vec3(leftInverse * (point - map.anchor), 0);
 }
 
 bool isDarkSquare(vec3 point) {
