@@ -222,7 +222,7 @@ vec4 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
             rayToLight = -lightDirection;
             intensity = lightIntensity;
             // TODO: why without this it looks bad?
-//            intensity *= dot(normalize(rayToLight), pointNormal);
+            intensity *= dot(normalize(rayToLight), pointNormal);
         }
         else {
             //spotlight
