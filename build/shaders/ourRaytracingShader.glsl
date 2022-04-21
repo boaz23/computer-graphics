@@ -211,64 +211,50 @@ float squareMod(float c, float factor, float sideLength) {
     return mod(int((factor * c) / sideLength), 2);
 }
 
-struct PlaneMap {
-    vec3 b1;
-    vec3 b2;
+struct PlaneEquation {
     vec3 anchor;
+    vec3 base1;
+    vec3 base2;
 };
 
-PlaneMap mapPlaneToXyPlane(vec4 plane) {
-    // See https://stackoverflow.com/questions/8780646/mapping-coordinates-from-plane-given-by-normal-vector-to-xy-plane.
-
-    vec3 planeNormal = plane.xyz;
+PlaneEquation findBaseForPlane(vec4 plane) {
     float d = plane.w;
-
+    vec3 planeCoefficients = plane.xyz;
+    vec3 planeNormal = normalize(planeCoefficients);
+    vec3 anchor = (d / dot(planeCoefficients, planeCoefficients)) * planeCoefficients;
     vec3 b1, b2;
-    if (plane.z == 0) {
-        if (plane.y == 0) {
-            float x = -d / plane.x;
-            b1 = vec3(x, 0, 1);
-            b2 = vec3(x, 1, 0);
-        }
-        else if (plane.x == 0) {
-            float y = -d / plane.y;
-            b1 = vec3(1, y, 0);
-            b2 = vec3(0, y, 1);
-        }
-        else {
-            // a*x + b*y + d = 0 -->
-            // y = -(a/b)*x - d/b
-
-            // get the perpendicular line in a 2D plane which goes through the origin
-            float m = plane.y / plane.x;
-            // find the intersection point between the above line and `y = m*x`
-            float x = -(d/plane.y) / (m + 1/m);
-            float y = m * x;
-            b1 = vec3(x, y, 1);
-            vec2 b2_2d = vec2(x, y) + normalize(vec2(-plane.y, plane.x));
-            b2 = vec3(b2_2d, 0);
-        }
+    if (plane.x == 0 && plane.y == 0) {
+        b1 = vec3(1, 0, 0);
+        b2 = vec3(0, 1, 0);
     }
     else {
-        b1 = vec3(1, 0, -plane.x / plane.z);
-        b2 = vec3(0, 1, -plane.y / plane.z);
+        b1 = normalize(vec3(-plane.y, plane.x, 0));
+        b2 = normalize(cross(b1, planeNormal));
     }
-    b1 = normalize(b1);
-    b2 = normalize(b2);
-
-    vec3 anchor = (d/dot(planeNormal, planeNormal)) * planeNormal;
-    return PlaneMap(b1, b2, anchor);
+    return PlaneEquation(anchor, b1, b2);
 }
 
-vec3 applyPlaneMap(PlaneMap map, vec3 point) {
-    mat2x3 coefficients = mat2x3(map.b1, map.b2);
+vec2 calculateBaseCoordinates(PlaneEquation planeBase, vec3 point) {
+    // `mat2x3` is actually a 3x2 matrix.
+    // Solve the following linear equation system:
+    //   anchor + mat2x3(base1, base2) * vec2(x, y) = point
+    // Equivalently, solve:
+    //   mat2x3(base1, base2) * vec2(x, y) = point - anchor
+    // The solution vec2(x, y)
+    mat2x3 coefficients = mat2x3(planeBase.base1, planeBase.base2);
     mat3x2 coefficientsT = transpose(coefficients);
     mat3x2 leftInverse = inverse(coefficientsT * coefficients) * coefficientsT;
-    return vec3(leftInverse * (point - map.anchor), 0);
+    return leftInverse * (point - planeBase.anchor);
 }
 
-bool isDarkSquare(vec3 point) {
-    return (mod(int(1.5 * point.x), 2) == mod(int(1.5 * point.y), 2)) == ((point.x < 0) == (point.y < 0));
+int calcSquareIndex(float x, float squareSideLength) {
+    return int(mod(int(x / squareSideLength), 2));
+}
+
+bool isDarkSquare(vec3 point, float squareSideLength) {
+    bool equalSqaureIndex = calcSquareIndex(point.x, squareSideLength) == calcSquareIndex(point.y, squareSideLength);
+    bool equalSign = (point.x < 0) == (point.y < 0);
+    return equalSqaureIndex == equalSign;
 }
 
 vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objectIndex) {
@@ -280,11 +266,9 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
     vec3 specularFactors = vec3(0.7);
     vec3 diffuseFactors = vec3(1);
     if (object.w <= 0) {
-        float squareSideLength = 1 / 1.5;
-        float d = object.w;
-        diffuseFactors = vec3(1);
-        PlaneMap map = mapPlaneToXyPlane(object);
-        if (isDarkSquare(applyPlaneMap(map, point))) {
+        PlaneEquation planeEquation = findBaseForPlane(object);
+        vec3 mappedCoordinates = vec3(calculateBaseCoordinates(planeEquation, point), 0);
+        if (isDarkSquare(mappedCoordinates, 1 / 1.5)) {
             diffuseFactors = vec3(0.5);
         }
     }
