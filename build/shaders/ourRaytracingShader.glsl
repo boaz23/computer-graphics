@@ -257,15 +257,34 @@ bool isDarkSquare(vec3 point, float squareSideLength) {
     return equalSqaureIndex == equalSign;
 }
 
+#define OBJ_KIND_PLANE 0
+#define OBJ_KIND_SPHERE 1
+int getObjectKind(vec4 object) {
+    if (object.w <= 0) {
+        return OBJ_KIND_PLANE;
+    }
+    return OBJ_KIND_SPHERE;
+}
+
+#define LIGHT_KIND_DIRECTIONAL 0
+#define LIGHT_KIND_SPOTLIGHT 1
+int getLightKind(vec4 light) {
+    if (light.w < 0.5) {
+        return LIGHT_KIND_DIRECTIONAL;
+    }
+    return LIGHT_KIND_SPOTLIGHT;
+}
+
 vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objectIndex) {
     vec3 objectColor = objColors[objectIndex].xyz;
     float shinniness = objColors[objectIndex].w;
     vec4 object = objects[objectIndex];
     vec3 color = objectColor * ambient.xyz;
+    int objectKind = getObjectKind(object);
 
     vec3 specularFactors = vec3(0.7);
     vec3 diffuseFactors = vec3(1);
-    if (object.w <= 0) {
+    if (objectKind == OBJ_KIND_PLANE) {
         PlaneEquation planeEquation = findBaseForPlane(object);
         vec3 mappedCoordinates = vec3(calculateBaseCoordinates(planeEquation, point), 0);
         if (isDarkSquare(mappedCoordinates, 1 / 1.5)) {
@@ -278,13 +297,14 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
         vec4 curLight = lightsDirection[i];
         vec3 lightDirection = curLight.xyz;
         vec4 lightIntensity = lightsIntensity[i];
+        int lightKind = getLightKind(curLight);
 
         vec3 vPointToLight;
         vec3 vPointToLightUnnormalized;
         float cosBetween;
         vec3 intensity = lightIntensity.xyz;
 //        intensity *= dot(vPointToLight, pointNormal);
-        if(curLight.w < 0.5) {
+        if(lightKind == LIGHT_KIND_DIRECTIONAL) {
             //directional
             vPointToLightUnnormalized = -lightDirection;
             vPointToLight = normalize(vPointToLightUnnormalized);
@@ -318,9 +338,11 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
         findFirstIntersectingObject(blockingObject, blockingDist, blockingPoint, blockingNormal, point, vPointToLight);
         if (
             blockingObject >= 0
+//            && (lightKind == LIGHT_KIND_DIRECTIONAL || blockingObject != objectIndex)
+//            && (lightKind == LIGHT_KIND_SPOTLIGHT || (blockingObject == objectIndex) != (getObjectKind(objects[blockingObject]) == OBJ_KIND_SPHERE)) // A plane cannot block itself and a sphere can
 //            && blockingObject != objectIndex
             && ((blockingObject == objectIndex) != (objects[blockingObject].w > 0)) // A plane cannot block itself and a sphere can
-            && (curLight.w < 0.5 || blockingDist < length(vPointToLightUnnormalized)) // Obly block when either if the light is directional or if the 'blocking' object appears between the point and the spotlight
+            && (lightKind == LIGHT_KIND_DIRECTIONAL || blockingDist < length(vPointToLightUnnormalized)) // Obly block when either if the light is directional or if the 'blocking' object appears between the point and the spotlight
 //            && objects[blockingObject].w > 0
         ) {
             continue;
@@ -333,7 +355,7 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
         vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), shinniness);
         // TODO: why this max?
         specular = max(specular, vec3(0));
-        if(object.w > 0) {
+        if(objectKind == OBJ_KIND_SPHERE) {
             //sphere
 
             // TODO: why this if?
