@@ -303,14 +303,28 @@ vec2 calculateBaseCoordinates(PlaneEquation planeBase, vec3 point) {
     return leftInverse * (point - planeBase.anchor);
 }
 
-int calcSquareIndex(float x, float squareSideLength) {
-    return int(mod(int(x / squareSideLength), 2));
+#define PLANE_SQUARE_SIDE_LENGTH (1 / 1.5)
+int calcSquareIndex(float x) {
+    return int(mod(int(x / PLANE_SQUARE_SIDE_LENGTH), 2));
 }
 
-bool isDarkSquare(vec3 point, float squareSideLength) {
-    bool equalSqaureIndex = calcSquareIndex(point.x, squareSideLength) == calcSquareIndex(point.y, squareSideLength);
+bool isDarkSquare(vec2 point) {
+    bool equalSqaureIndex = calcSquareIndex(point.x) == calcSquareIndex(point.y);
     bool equalSign = (point.x < 0) == (point.y < 0);
     return equalSqaureIndex == equalSign;
+}
+
+float calculateDiffuseFactor(Object object, vec3 point) {
+    float diffuseFactor =1;
+    if (object.kind == OBJ_KIND_PLANE) {
+        PlaneEquation planeEquation = findBaseForPlane(object.info);
+        vec2 mappedCoordinates = calculateBaseCoordinates(planeEquation, point);
+        if (isDarkSquare(mappedCoordinates)) {
+            diffuseFactor = 0.5;
+        }
+    }
+
+    return diffuseFactor;
 }
 
 bool isShadowing(Intersection hit, Intersection blocking, Light light) {
@@ -335,21 +349,11 @@ bool isShadowing(Intersection hit, Intersection blocking, Light light) {
 }
 
 vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
-    vec3 objectColor = objColors[intersection.objectIndex].xyz;
-    float shinniness = objColors[intersection.objectIndex].w;
-    vec4 object = objects[intersection.objectIndex];
-    vec3 color = objectColor * ambient.xyz;
-    int objectKind = getObjectKind(object);
+    Object object = getObject(intersection.objectIndex);
+    vec3 color = object.color * ambient.xyz;
 
     vec3 specularFactors = vec3(0.7);
-    vec3 diffuseFactors = vec3(1);
-    if (objectKind == OBJ_KIND_PLANE) {
-        PlaneEquation planeEquation = findBaseForPlane(object);
-        vec3 mappedCoordinates = vec3(calculateBaseCoordinates(planeEquation, intersection.point), 0);
-        if (isDarkSquare(mappedCoordinates, 1 / 1.5)) {
-            diffuseFactors = vec3(0.5);
-        }
-    }
+    vec3 diffuseFactors = vec3(calculateDiffuseFactor(object, intersection.point));
 
     int spotlightIndex = 0;
     for(int i = 0; i < sizes[1]; i++) {
@@ -386,13 +390,13 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
         }
 
         // TODO: why this max?
-        vec3 diffuse = diffuseFactors * objectColor * intensity * dot(intersection.pointNormal, vPointToLight);
+        vec3 diffuse = diffuseFactors * object.color * intensity * dot(intersection.pointNormal, vPointToLight);
         diffuse = max(diffuse, vec3(0));
         vec3 refl = normalize(reflect(-vPointToLight, intersection.pointNormal));
-        vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), shinniness);
+        vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), object.shinniness);
         // TODO: why this max?
         specular = max(specular, vec3(0));
-        if(objectKind == OBJ_KIND_SPHERE) {
+        if(object.kind == OBJ_KIND_SPHERE) {
             //sphere
 
             // TODO: why this if?
