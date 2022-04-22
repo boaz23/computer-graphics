@@ -347,7 +347,7 @@ float calculateDiffuseFactor(vec4 object, vec3 point) {
 bool isShadowing_directional(Intersection hit, Intersection blocking, Light light) {
     bool isValid = blocking.objectIndex >= 0;
     bool isSameObject = blocking.objectIndex == hit.objectIndex;
-    bool isSamePoint = (hit.point != blocking.point && length(hit.point - blocking.point) > 1.5e-6);
+    bool isSamePoint = (hit.point != blocking.point && length(hit.point - blocking.point) > EPSILON);
     
     vec4 object = objects[hit.objectIndex];
     bool isObjectASphere = isObjectOfKind(object, OBJ_KIND_SPHERE);
@@ -355,9 +355,10 @@ bool isShadowing_directional(Intersection hit, Intersection blocking, Light ligh
     vec4 blockingObject = objects[blocking.objectIndex];
     bool isBlockingObjectASphere = isObjectOfKind(blockingObject, OBJ_KIND_SPHERE);
     
-    // TODO: why are planes transparent?
     // return isValid && (!isSameObject || false);
+    // TODO: why are planes transparent?
     return isValid && (!isSameObject || false) && isBlockingObjectASphere;
+    // TODO: why does this makes weird black points on the red ball?
     // return isValid && (!isSameObject || (isObjectASphere && isSamePoint));
 }
 
@@ -509,6 +510,7 @@ void bounceLightRay(inout StraightLineEquation ray, out Intersection intersectio
     }
 }
 
+// TODO: weird dots??
 void main()
 {
     vec3 vRay = normalize(position0.xyz - eye.xyz);
