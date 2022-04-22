@@ -222,8 +222,9 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
         //plane
 
         float d = object.w;
-        normal = normalize(object.xyz);
-        dist = -(dot(normal, p0) + d) / dot(normal, ray);
+        vec3 perpendicular = object.xyz;
+        normal = normalize(perpendicular);
+        dist = -(dot(perpendicular, p0) + d) / dot(perpendicular, ray);
         intersectionPoint = p0 + ray*dist;
     }
     else {
