@@ -239,7 +239,7 @@ Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, int objectIndex) {
         vec4 curObject = objects[i];
         Intersection intersection = findIntersection(curObject, p0, ray);
         if(
-            intersection.distance > 1.5e-6 &&
+            intersection.distance > 0 &&
             (minIntersection.objectIndex == -1 || intersection.distance < minIntersection.distance)
         ) {
             intersection.objectIndex = i;
@@ -313,35 +313,24 @@ float calculateDiffuseFactor(vec4 object, vec3 point) {
     return diffuseFactor;
 }
 
-bool isShadowing(Intersection hit, Intersection blocking, Light light) {
+bool isShadowing_directional(Intersection hit, Intersection blocking, Light light) {
+    bool isValid = blocking.objectIndex >= 0;
+
+    vec4 blockingObject = objects[blocking.objectIndex];
+    bool isBlockingObjectASphere = isObjectOfKind(blockingObject, OBJ_KIND_SPHERE);
+
+    return isValid && isBlockingObjectASphere;
+}
+bool isShadowing_spotlight(Intersection hit, Intersection blocking, Light light) {
     bool isValid = blocking.objectIndex >= 0;
     bool isSameObject = blocking.objectIndex == hit.objectIndex;
-    bool isBlockingASphere = isObjectOfKind(objects[blocking.objectIndex], OBJ_KIND_SPHERE);
+    bool isSamePoint = (hit.point != blocking.point && length(hit.point - blocking.point) > 1.5e-6);
+    
+    vec4 object = objects[hit.objectIndex];
+    bool isObjectASphere = isObjectOfKind(object, OBJ_KIND_SPHERE);
 
-    // A plane cannot block itself and a sphere can
-    bool sameObjectIffIsPlane = isSameObject != isBlockingASphere;
-
-    // (light is Spotlight) -> o1 != o2
-    // bool spotlightImpliesDifferentObject = light.kind == LIGHT_KIND_DIRECTIONAL || !isSameObject;
-
-    // (light is Directional) -> ((o1 == o2) <--> (object is Sphere))
-    // bool directionalLightImpliesSameObjectIffObjectIsPlane = light.kind == LIGHT_KIND_SPOTLIGHT || (isSameObject != isSphere);
-
-    // Only block when either if the light is directional or if the 'blocking' object appears between the point and the spotlight
-     vec3 vPointToLightUnnormalized = light.position - hit.point;
-     bool spotlightImpliesBlockingIsBetween = light.kind == LIGHT_KIND_DIRECTIONAL || blocking.distance < length(vPointToLightUnnormalized);
-     
-     bool sameObjectImpliesSphere = !isSameObject || isBlockingASphere;
-
-     bool directionalLightImpliesSphere = light.kind == LIGHT_KIND_SPOTLIGHT || (isValid && isBlockingASphere);
-     bool spotlightImpliesDifferentObjects = light.kind == LIGHT_KIND_DIRECTIONAL || !isSameObject;
-
-    return true
-        // && spotlightImpliesBlockingIsBetween
-        // && sameObjectImpliesSphere
-         && directionalLightImpliesSphere
-         && spotlightImpliesDifferentObjects
-    ;
+    return isValid && !isSameObject;
+    // return isValid && (!isSameObject || !isObjectASphere || isSamePoint);
 }
 
 vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
@@ -373,7 +362,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
             // I don't agree with that logic, but I think that was what happening.
 
             Intersection blockingIntersection = findFirstIntersectingObject(intersection.point, vPointToLight, intersection.objectIndex);
-            if (!(blockingIntersection.objectIndex < 0 || isObjectOfKind(objects[blockingIntersection.objectIndex], OBJ_KIND_PLANE))) {
+            if (isShadowing_directional(intersection, blockingIntersection, light)) {
                 continue;
             }
         }
@@ -389,22 +378,16 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
                 // TODO: do we need to?
                 intensity *= cosBetween;
 
-                // TODO: why use the light position instead of the intersection point?
-                //   and why negate the point to light vector?
+                // By shooting the ray from the light position in the direction to the point, we avoid
+                // hitting objects which are out of the spotlight's range.
                 Intersection blockingIntersection = findFirstIntersectingObject(light.position, -vPointToLight, -1);
-                if (blockingIntersection.objectIndex != intersection.objectIndex) {
+                if (isShadowing_spotlight(intersection, blockingIntersection, light)) {
                     continue;
                 }
             }
         }
 
-        // Intersection blockingIntersection = findFirstIntersectingObject(intersection.point, vPointToLight, -1);
-        // if (isShadowing(intersection, blockingIntersection, light)) {
-        //     continue;
-        // }
-
         vec3 diffuse = object.color * intensity * dot(intersection.pointNormal, vPointToLight);
-        // TODO: why this max?
         vec3 refl = normalize(reflect(-vPointToLight, intersection.pointNormal));
         vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), object.shinniness);
         // TODO: why this max?
@@ -417,6 +400,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
                 color += specular;
             }
 
+            // TODO: why this max?
             diffuse = max(diffuse, vec3(0));
             color += diffuse;
         }
