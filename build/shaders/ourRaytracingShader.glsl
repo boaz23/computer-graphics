@@ -350,10 +350,12 @@ bool isShadowing(Intersection hit, Intersection blocking, Light light) {
 
 vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
     Object object = getObject(intersection.objectIndex);
-    vec3 color = object.color * ambient.xyz;
 
     vec3 specularFactors = vec3(0.7);
     vec3 diffuseFactors = vec3(calculateDiffuseFactor(object, intersection.point));
+
+    object.color = diffuseFactors * object.color;
+    vec3 color = object.color * ambient.xyz;
 
     int spotlightIndex = 0;
     for(int i = 0; i < sizes[1]; i++) {
@@ -390,7 +392,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
         }
 
         // TODO: why this max?
-        vec3 diffuse = diffuseFactors * object.color * intensity * dot(intersection.pointNormal, vPointToLight);
+        vec3 diffuse = object.color * intensity * dot(intersection.pointNormal, vPointToLight);
         diffuse = max(diffuse, vec3(0));
         vec3 refl = normalize(reflect(-vPointToLight, intersection.pointNormal));
         vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), object.shinniness);
@@ -433,11 +435,8 @@ void main()
     }
     else {
         color = calculateColor_noTracing(vRay, intersection);
-//        float diffuseFactor = 1;
-//        if (objects[interObject].w <= 0 && isDarkSquare(interPoint)) {
-//            diffuseFactor = 0.5;
-//        }
-//        color = colorCalc(interObject, interPoint, vRay, diffuseFactor), 1;
+//        float diffuseFactor = calculateDiffuseFactor(getObject(intersection.objectIndex), intersection.point);
+//        color = colorCalc(intersection.objectIndex, intersection.point, vRay, diffuseFactor);
 //        color = vec4(1, 0, 0, 1);
     }
     outColor = vec4(color, 1);
