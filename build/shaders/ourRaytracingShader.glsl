@@ -147,6 +147,7 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
 
 #define OBJ_KIND_PLANE 0
 #define OBJ_KIND_SPHERE 1
+#define isObjectOfKind(object, kind) ((object).w <= 0 == ((kind) == OBJ_KIND_PLANE))
 int getObjectKind(vec4 object) {
     if (object.w <= 0) {
         return OBJ_KIND_PLANE;
@@ -214,7 +215,7 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
     float dist = -1.0;
     vec3 normal = vec3(-1);
     vec3 intersectionPoint = vec3(-1);
-    if(getObjectKind(object) == OBJ_KIND_PLANE) {
+    if(isObjectOfKind(object, OBJ_KIND_PLANE)) {
         //plane
 
         float d = object.w;
@@ -314,10 +315,10 @@ bool isDarkSquare(vec2 point) {
     return equalSqaureIndex == equalSign;
 }
 
-float calculateDiffuseFactor(Object object, vec3 point) {
+float calculateDiffuseFactor(vec4 object, vec3 point) {
     float diffuseFactor =1;
-    if (object.kind == OBJ_KIND_PLANE) {
-        PlaneEquation planeEquation = findBaseForPlane(object.info);
+    if (isObjectOfKind(object, OBJ_KIND_PLANE)) {
+        PlaneEquation planeEquation = findBaseForPlane(object);
         vec2 mappedCoordinates = calculateBaseCoordinates(planeEquation, point);
         if (isDarkSquare(mappedCoordinates)) {
             diffuseFactor = 0.5;
@@ -330,7 +331,7 @@ float calculateDiffuseFactor(Object object, vec3 point) {
 bool isShadowing(Intersection hit, Intersection blocking, Light light) {
     bool isValid = blocking.objectIndex >= 0;
     bool isSameObject = blocking.objectIndex == hit.objectIndex;
-    bool isBlockingASphere = getObjectKind(objects[blocking.objectIndex]) == OBJ_KIND_SPHERE;
+    bool isBlockingASphere = isObjectOfKind(objects[blocking.objectIndex], OBJ_KIND_SPHERE);
 
     // A plane cannot block itself and a sphere can
     bool sameObjectIffIsPlane = isSameObject != isBlockingASphere;
@@ -342,9 +343,9 @@ bool isShadowing(Intersection hit, Intersection blocking, Light light) {
     // bool directionalLightImpliesSameObjectIffObjectIsPlane = light.kind == LIGHT_KIND_SPOTLIGHT || (isSameObject != isSphere);
 
     // Only block when either if the light is directional or if the 'blocking' object appears between the point and the spotlight
-    vec3 vPointToLightUnnormalized = light.position - hit.point;
-    bool spotlightImpliesBlockingIsBetween = light.kind == LIGHT_KIND_DIRECTIONAL || blocking.distance < length(vPointToLightUnnormalized);
-
+     vec3 vPointToLightUnnormalized = light.position - hit.point;
+     bool spotlightImpliesBlockingIsBetween = light.kind == LIGHT_KIND_DIRECTIONAL || blocking.distance < length(vPointToLightUnnormalized);
+     
     return isValid && sameObjectIffIsPlane && spotlightImpliesBlockingIsBetween;
 }
 
@@ -352,7 +353,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
     Object object = getObject(intersection.objectIndex);
 
     vec3 specularFactors = vec3(0.7);
-    vec3 diffuseFactors = vec3(calculateDiffuseFactor(object, intersection.point));
+    vec3 diffuseFactors = vec3(calculateDiffuseFactor(object.info, intersection.point));
 
     object.color = diffuseFactors * object.color;
     vec3 color = object.color * ambient.xyz;
@@ -369,7 +370,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
             //directional
             vPointToLight = -light.direction;
             // TODO: why without this it looks bad?
-            intensity *= dot(vPointToLight, intersection.pointNormal);
+             intensity *= dot(vPointToLight, intersection.pointNormal);
         }
         else {
             //spotlight
@@ -435,7 +436,7 @@ void main()
     }
     else {
         color = calculateColor_noTracing(vRay, intersection);
-//        float diffuseFactor = calculateDiffuseFactor(getObject(intersection.objectIndex), intersection.point);
+//        float diffuseFactor = calculateDiffuseFactor(objects[intersection.objectIndex], intersection.point);
 //        color = colorCalc(intersection.objectIndex, intersection.point, vRay, diffuseFactor);
 //        color = vec4(1, 0, 0, 1);
     }
