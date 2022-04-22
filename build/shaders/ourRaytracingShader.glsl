@@ -364,7 +364,7 @@ bool isShadowing_directional(Intersection hit, Intersection blocking, Light ligh
 bool isShadowing_spotlight(Intersection hit, Intersection blocking, Light light) {
     bool isValid = blocking.objectIndex >= 0;
     bool isSameObject = blocking.objectIndex == hit.objectIndex;
-    bool isSamePoint = (hit.point != blocking.point && length(hit.point - blocking.point) > 1.5e-6);
+    bool isSamePoint = (hit.point != blocking.point && length(hit.point - blocking.point) > EPSILON);
 
     vec4 object = objects[hit.objectIndex];
     bool isObjectASphere = isObjectOfKind(object, OBJ_KIND_SPHERE);
@@ -461,7 +461,7 @@ float calcOtherSin(float s) {
 
 #define REFRACTION_INDEX_NORMAL 1
 #define REFRACTION_INDEX_SPHERE 1.5
-#define MAX_TRACING_COUNT 0
+#define MAX_TRACING_COUNT 5
 void bounceLightRay(inout StraightLineEquation ray, out Intersection intersection) {
     int i;
     float refractionIndex = REFRACTION_INDEX_NORMAL;
