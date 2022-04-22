@@ -145,10 +145,17 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
     return min(color,vec3(1.0,1.0,1.0));
 }
 
-void findIntersection(out float dist, out vec3 normal, out vec3 intersectionPoint, vec4 object, vec3 p0, vec3 ray) {
-    dist = -1.0;
-    normal = vec3(-1);
-    intersectionPoint = vec3(-1);
+struct Intersection {
+    int objectIndex;
+    float distance;
+    vec3 point;
+    vec3 pointNormal;
+};
+
+Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
+    float dist = -1.0;
+    vec3 normal = vec3(-1);
+    vec3 intersectionPoint = vec3(-1);
     if(object.w <= 0) {
         //plane
 
@@ -182,29 +189,20 @@ void findIntersection(out float dist, out vec3 normal, out vec3 intersectionPoin
             normal = normalize(intersectionPoint - o);
         }
     }
+    return Intersection(-1, dist, intersectionPoint, normal);
 }
 
-void findFirstIntersectingObject(out int intersectionIndex, out float intersectionDistance, out vec3 intersectionPoint, out vec3 intersectionNormal, vec3 p0, vec3 ray) {
-    float minDist = -1;
-    int minObjectIndex = -1;
-    vec3 minInterPoint = vec3(-1);
-    vec3 minInterNormal = vec3(-1);
+Intersection findFirstIntersectingObject(vec3 p0, vec3 ray) {
+    Intersection minIntersection = Intersection(-1, -1, vec3(-1), vec3(-1));
     for(int i = 0; i < sizes[0]; i++) {
         vec4 curObject = objects[i];
-        float dist;
-        vec3 interNormal, interPoint;
-        findIntersection(dist, interNormal, interPoint, curObject, p0, ray);
-        if(dist > 1.5e-6 && (dist < minDist || minObjectIndex == -1)) {
-            minDist = dist;
-            minObjectIndex = i;
-            minInterPoint = interPoint;
-            minInterNormal = interNormal;
+        Intersection intersection = findIntersection(curObject, p0, ray);
+        if(intersection.distance > 1.5e-6 && (minIntersection.objectIndex == -1 || intersection.distance < minIntersection.distance)) {
+            intersection.objectIndex = i;
+            minIntersection = intersection;
         }
     }
-    intersectionIndex = minObjectIndex;
-    intersectionDistance = minDist;
-    intersectionPoint = minInterPoint;
-    intersectionNormal = minInterNormal;
+    return minIntersection;
 }
 
 float squareMod(float c, float factor, float sideLength) {
@@ -275,10 +273,10 @@ int getLightKind(vec4 light) {
     return LIGHT_KIND_SPOTLIGHT;
 }
 
-vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objectIndex) {
-    vec3 objectColor = objColors[objectIndex].xyz;
-    float shinniness = objColors[objectIndex].w;
-    vec4 object = objects[objectIndex];
+vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
+    vec3 objectColor = objColors[intersection.objectIndex].xyz;
+    float shinniness = objColors[intersection.objectIndex].w;
+    vec4 object = objects[intersection.objectIndex];
     vec3 color = objectColor * ambient.xyz;
     int objectKind = getObjectKind(object);
 
@@ -286,7 +284,7 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
     vec3 diffuseFactors = vec3(1);
     if (objectKind == OBJ_KIND_PLANE) {
         PlaneEquation planeEquation = findBaseForPlane(object);
-        vec3 mappedCoordinates = vec3(calculateBaseCoordinates(planeEquation, point), 0);
+        vec3 mappedCoordinates = vec3(calculateBaseCoordinates(planeEquation, intersection.point), 0);
         if (isDarkSquare(mappedCoordinates, 1 / 1.5)) {
             diffuseFactors = vec3(0.5);
         }
@@ -310,7 +308,7 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
             vPointToLight = normalize(vPointToLightUnnormalized);
             lightDirection = normalize(lightDirection);
             // TODO: why without this it looks bad?
-            intensity *= dot(vPointToLight, pointNormal);
+            intensity *= dot(vPointToLight, intersection.pointNormal);
         }
         else {
             //spotlight
@@ -319,7 +317,7 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
             vec3 spotlightPosition = spotlightInfo.xyz;
             float spotlightHalfApertureCos = spotlightInfo.w;
             lightDirection = normalize(lightDirection);
-            vPointToLightUnnormalized = spotlightPosition - point;
+            vPointToLightUnnormalized = spotlightPosition - intersection.point;
             vPointToLight = normalize(vPointToLightUnnormalized);
             float cosBetween = dot(-vPointToLight, lightDirection);
             if(cosBetween <= spotlightHalfApertureCos) {
@@ -332,26 +330,23 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
             }
         }
 
-        int blockingObject;
-        float blockingDist;
-        vec3 blockingPoint, blockingNormal;
-        findFirstIntersectingObject(blockingObject, blockingDist, blockingPoint, blockingNormal, point, vPointToLight);
+        Intersection blockingIntersection = findFirstIntersectingObject(intersection.point, vPointToLight);
         if (
-            blockingObject >= 0
-//            && (lightKind == LIGHT_KIND_DIRECTIONAL || blockingObject != objectIndex)
-//            && (lightKind == LIGHT_KIND_SPOTLIGHT || (blockingObject == objectIndex) != (getObjectKind(objects[blockingObject]) == OBJ_KIND_SPHERE)) // A plane cannot block itself and a sphere can
-//            && blockingObject != objectIndex
-            && ((blockingObject == objectIndex) != (objects[blockingObject].w > 0)) // A plane cannot block itself and a sphere can
-            && (lightKind == LIGHT_KIND_DIRECTIONAL || blockingDist < length(vPointToLightUnnormalized)) // Obly block when either if the light is directional or if the 'blocking' object appears between the point and the spotlight
+            blockingIntersection.objectIndex >= 0
+//            && (lightKind == LIGHT_KIND_DIRECTIONAL || blockingIntersection.objectIndex != intersection.objectIndex)
+//            && (lightKind == LIGHT_KIND_SPOTLIGHT || (blockingIntersection.objectIndex == intersection.objectIndex) != (getObjectKind(objects[blockingIntersection.objectIndex]) == OBJ_KIND_SPHERE)) // A plane cannot block itself and a sphere can
+//            && blockingIntersection.objectIndex != intersection.objectIndex
+            && ((blockingIntersection.objectIndex == intersection.objectIndex) != (getObjectKind(objects[blockingIntersection.objectIndex]) == OBJ_KIND_SPHERE)) // A plane cannot block itself and a sphere can
+            && (lightKind == LIGHT_KIND_DIRECTIONAL || blockingIntersection.distance < length(vPointToLightUnnormalized)) // Obly block when either if the light is directional or if the 'blocking' object appears between the point and the spotlight
 //            && objects[blockingObject].w > 0
         ) {
             continue;
         }
 
         // TODO: why this max?
-        vec3 diffuse = diffuseFactors * objectColor * intensity * dot(pointNormal, vPointToLight);
+        vec3 diffuse = diffuseFactors * objectColor * intensity * dot(intersection.pointNormal, vPointToLight);
         diffuse = max(diffuse, vec3(0));
-        vec3 refl = normalize(reflect(-vPointToLight, pointNormal));
+        vec3 refl = normalize(reflect(-vPointToLight, intersection.pointNormal));
         vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), shinniness);
         // TODO: why this max?
         specular = max(specular, vec3(0));
@@ -360,7 +355,7 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
 
             // TODO: why this if?
             //       and why is the `vPointToLight` should not be negated?
-            if (dot(vPointToLight, pointNormal) > 0) {
+            if (dot(vPointToLight, intersection.pointNormal) > 0) {
                 color += specular;
             }
             color += diffuse;
@@ -380,21 +375,18 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
 void main()
 {
     vec3 vRay = normalize(position0.xyz - eye.xyz);
-    int interObject;
-    float interDist;
-    vec3 interPoint, interNormal;
-    findFirstIntersectingObject(interObject, interDist, interPoint, interNormal, position0, vRay);
+    Intersection intersection = findFirstIntersectingObject(position0, vRay);
 //    interObject = -1;
 //    float t = intersection(interObject, position0, vRay);
 //    interPoint = position0 + t*vRay;
 
 
     vec3 color;
-    if(interObject == -1) {
+    if(intersection.objectIndex < 0) {
         color = vec3(1, 1, 1);
     }
     else {
-        color = calculateColor_noTracing(vRay, interPoint, interNormal, interObject);
+        color = calculateColor_noTracing(vRay, intersection);
 //        float diffuseFactor = 1;
 //        if (objects[interObject].w <= 0 && isDarkSquare(interPoint)) {
 //            diffuseFactor = 0.5;
