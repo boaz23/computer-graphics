@@ -145,6 +145,64 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
     return min(color,vec3(1.0,1.0,1.0));
 }
 
+#define OBJ_KIND_PLANE 0
+#define OBJ_KIND_SPHERE 1
+int getObjectKind(vec4 object) {
+    if (object.w <= 0) {
+        return OBJ_KIND_PLANE;
+    }
+    else {
+        return OBJ_KIND_SPHERE;
+    }
+}
+
+struct Object {
+    int kind;
+    vec4 info;
+    vec3 color;
+    float shinniness;
+};
+
+Object getObject(int i) {
+    vec4 object = objects[i];
+    int kind = getObjectKind(object);
+    vec3 color = objColors[i].xyz;
+    float shinniness = objColors[i].w;
+    return Object(kind, object, color, shinniness);
+}
+
+#define LIGHT_KIND_DIRECTIONAL 0
+#define LIGHT_KIND_SPOTLIGHT 1
+struct Light {
+    int kind;
+    vec3 intensity;
+    vec3 direction;
+
+    // spotlight only
+    vec3 position;
+    float spotlight_halfApertureCos;
+};
+
+Light getLight(int i, int positionIndex) {
+    vec4 light = lightsDirection[i];
+    vec4 positionInfo;
+    int kind;
+    if (light.w < 0.5) {
+        kind = LIGHT_KIND_DIRECTIONAL;
+        positionInfo = vec4(vec3(0), 1);
+    }
+    else {
+        kind = LIGHT_KIND_SPOTLIGHT;
+        positionInfo = lightsPosition[positionIndex];
+    }
+
+    vec3 direction = normalize(light.xyz);
+    vec3 intensity = lightsIntensity[i].xyz;
+    vec3 position = positionInfo.xyz;
+    float spotlight_halfApertureCos = positionInfo.w;
+    return Light(kind, intensity, direction, position, spotlight_halfApertureCos);
+}
+
 struct Intersection {
     int objectIndex;
     float distance;
@@ -156,7 +214,7 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
     float dist = -1.0;
     vec3 normal = vec3(-1);
     vec3 intersectionPoint = vec3(-1);
-    if(object.w <= 0) {
+    if(getObjectKind(object) == OBJ_KIND_PLANE) {
         //plane
 
         float d = object.w;
@@ -255,22 +313,25 @@ bool isDarkSquare(vec3 point, float squareSideLength) {
     return equalSqaureIndex == equalSign;
 }
 
-#define OBJ_KIND_PLANE 0
-#define OBJ_KIND_SPHERE 1
-int getObjectKind(vec4 object) {
-    if (object.w <= 0) {
-        return OBJ_KIND_PLANE;
-    }
-    return OBJ_KIND_SPHERE;
-}
+bool isShadowing(Intersection hit, Intersection blocking, Light light) {
+    bool isValid = blocking.objectIndex >= 0;
+    bool isSameObject = blocking.objectIndex == hit.objectIndex;
+    bool isBlockingASphere = getObjectKind(objects[blocking.objectIndex]) == OBJ_KIND_SPHERE;
 
-#define LIGHT_KIND_DIRECTIONAL 0
-#define LIGHT_KIND_SPOTLIGHT 1
-int getLightKind(vec4 light) {
-    if (light.w < 0.5) {
-        return LIGHT_KIND_DIRECTIONAL;
-    }
-    return LIGHT_KIND_SPOTLIGHT;
+    // A plane cannot block itself and a sphere can
+    bool sameObjectIffIsPlane = isSameObject != isBlockingASphere;
+
+    // (light is Spotlight) -> o1 != o2
+    // bool spotlightImpliesDifferentObject = light.kind == LIGHT_KIND_DIRECTIONAL || !isSameObject;
+
+    // (light is Directional) -> ((o1 == o2) <--> (object is Sphere))
+    // bool directionalLightImpliesSameObjectIffObjectIsPlane = light.kind == LIGHT_KIND_SPOTLIGHT || (isSameObject != isSphere);
+
+    // Only block when either if the light is directional or if the 'blocking' object appears between the point and the spotlight
+    vec3 vPointToLightUnnormalized = light.position - hit.point;
+    bool spotlightImpliesBlockingIsBetween = light.kind == LIGHT_KIND_DIRECTIONAL || blocking.distance < length(vPointToLightUnnormalized);
+
+    return isValid && sameObjectIffIsPlane && spotlightImpliesBlockingIsBetween;
 }
 
 vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
@@ -290,37 +351,26 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
         }
     }
 
-    int currentSpotlightIdx = -1;
+    int spotlightIndex = 0;
     for(int i = 0; i < sizes[1]; i++) {
-        vec4 curLight = lightsDirection[i];
-        vec3 lightDirection = curLight.xyz;
-        vec4 lightIntensity = lightsIntensity[i];
-        int lightKind = getLightKind(curLight);
+        Light light = getLight(i, spotlightIndex);
+
+        vec3 intensity = light.intensity;
+//        intensity *= dot(vPointToLight, pointNormal);
 
         vec3 vPointToLight;
-        vec3 vPointToLightUnnormalized;
-        float cosBetween;
-        vec3 intensity = lightIntensity.xyz;
-//        intensity *= dot(vPointToLight, pointNormal);
-        if(lightKind == LIGHT_KIND_DIRECTIONAL) {
+        if(light.kind == LIGHT_KIND_DIRECTIONAL) {
             //directional
-            vPointToLightUnnormalized = -lightDirection;
-            vPointToLight = normalize(vPointToLightUnnormalized);
-            lightDirection = normalize(lightDirection);
+            vPointToLight = -light.direction;
             // TODO: why without this it looks bad?
             intensity *= dot(vPointToLight, intersection.pointNormal);
         }
         else {
             //spotlight
-            currentSpotlightIdx += 1;
-            vec4 spotlightInfo = lightsPosition[currentSpotlightIdx];
-            vec3 spotlightPosition = spotlightInfo.xyz;
-            float spotlightHalfApertureCos = spotlightInfo.w;
-            lightDirection = normalize(lightDirection);
-            vPointToLightUnnormalized = spotlightPosition - intersection.point;
-            vPointToLight = normalize(vPointToLightUnnormalized);
-            float cosBetween = dot(-vPointToLight, lightDirection);
-            if(cosBetween <= spotlightHalfApertureCos) {
+            spotlightIndex += 1;
+            vPointToLight = normalize(light.position - intersection.point);
+            float cosBetween = dot(-vPointToLight, light.direction);
+            if(cosBetween <= light.spotlight_halfApertureCos) {
                 // in range
                 // TODO: do we need to?
                 intensity *= cosBetween;
@@ -331,15 +381,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
         }
 
         Intersection blockingIntersection = findFirstIntersectingObject(intersection.point, vPointToLight);
-        if (
-            blockingIntersection.objectIndex >= 0
-//            && (lightKind == LIGHT_KIND_DIRECTIONAL || blockingIntersection.objectIndex != intersection.objectIndex)
-//            && (lightKind == LIGHT_KIND_SPOTLIGHT || (blockingIntersection.objectIndex == intersection.objectIndex) != (getObjectKind(objects[blockingIntersection.objectIndex]) == OBJ_KIND_SPHERE)) // A plane cannot block itself and a sphere can
-//            && blockingIntersection.objectIndex != intersection.objectIndex
-            && ((blockingIntersection.objectIndex == intersection.objectIndex) != (getObjectKind(objects[blockingIntersection.objectIndex]) == OBJ_KIND_SPHERE)) // A plane cannot block itself and a sphere can
-            && (lightKind == LIGHT_KIND_DIRECTIONAL || blockingIntersection.distance < length(vPointToLightUnnormalized)) // Obly block when either if the light is directional or if the 'blocking' object appears between the point and the spotlight
-//            && objects[blockingObject].w > 0
-        ) {
+        if (isShadowing(intersection, blockingIntersection, light)) {
             continue;
         }
 
