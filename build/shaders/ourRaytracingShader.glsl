@@ -1,4 +1,4 @@
- #version 330 
+ #version 330
 
 uniform vec4 eye;
 uniform vec4 ambient;
@@ -39,14 +39,14 @@ float intersection(inout int sourceIndx,vec3 sourcePoint,vec3 v)
                 {
                     tmin = t;
                     indx = i;
-                } 
-            }   
+                }
+            }
         }
         else  //plane
-        {    
+        {
             vec3 n =  normalize(objects[i].xyz);
             vec3 p0o = -objects[i].w*n/length(objects[i].xyz) - sourcePoint;
-            float t = dot(n,p0o)/dot(n,v); 
+            float t = dot(n,p0o)/dot(n,v);
             if(t>0 && t<tmin)
             {
                 tmin = t;
@@ -54,7 +54,7 @@ float intersection(inout int sourceIndx,vec3 sourcePoint,vec3 v)
             }
         }
     }
-    sourceIndx = indx; 
+    sourceIndx = indx;
     return tmin;
 }
 
@@ -73,18 +73,18 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
             v = normalize(lightsDirection[i].xyz);
            //  v = normalize(vec3(0.0,0.5,-1.0));
             float t = intersection(indx,sourcePoint,-v);
-            
+
             // TODO: tamir, why??? planes are see through?
             if(indx < 0 || objects[indx].w<=0) //no intersection
              {
                // vec3 u = normalize(sourcePoint - eye.xyz);
                 if(objects[sourceIndx].w > 0) //sphere
                 {
-                    
+
                     vec3 n = -normalize( sourcePoint - objects[sourceIndx].xyz);
                     vec3 refl = normalize(reflect(v,n));
                     if(dot(v,n)>0.0 )
-                        color+= max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0));  //specular  
+                        color+= max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0));  //specular
                     color+= max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(v,n),vec3(0.0,0.0,0.0)) ;  //difuse
                     //        color = vec3(1.0,1.0,0.0);
                 }
@@ -92,16 +92,16 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
                 {
                     vec3 n = normalize(objects[sourceIndx].xyz);
                     vec3 refl = normalize(reflect(v,n));
-                    
+
                     color = min(color + max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0)); //specular
                     color = min( color + max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(v,n),vec3(0.0,0.0,0.0)),vec3(1.0,1.0,1.0)); //difuse
-                 
+
                   //      color = vec3(1.0,1.0,0.0);
                 }
             }
          //   else if(indx == 1)
           //          color = lightsIntensity[i].rgb;
-            
+
         }
         else  //flashlight
         {
@@ -124,7 +124,7 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
                         if(dot(v,n)>0.0)
                           color+=max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl,u),objColors[sourceIndx].a),vec3(0.0,0.0,0.0)); //specular
                         color+= max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(v,n),vec3(0.0,0.0,0.0));
-                      //          color = vec3(1.0,1.0,0.0);            
+                      //          color = vec3(1.0,1.0,0.0);
                     }
                     else  //plane
                     {
@@ -262,7 +262,7 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
     float shinniness = objColors[objectIndex].w;
     vec4 object = objects[objectIndex];
     vec3 color = objectColor * ambient.xyz;
-    
+
     vec3 specularFactors = vec3(0.7);
     vec3 diffuseFactors = vec3(1);
     if (object.w <= 0) {
@@ -356,7 +356,7 @@ vec3 calculateColor_noTracing(vec3 vRay, vec3 point, vec3 pointNormal, int objec
 }
 
 void main()
-{  
+{
     vec3 vRay = normalize(position0.xyz - eye.xyz);
     int interObject;
     float interDist;
@@ -382,6 +382,3 @@ void main()
     }
     outColor = vec4(color, 1);
 }
- 
-
-
