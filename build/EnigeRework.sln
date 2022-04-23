@@ -206,6 +206,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{3CC3
 		shaders\newtonShader.glsl = shaders\newtonShader.glsl
 		shaders\newtonShader.vs = shaders\newtonShader.vs
 		shaders\ourRaytracingShader.glsl = shaders\ourRaytracingShader.glsl
+		shaders\ourRaytracingShader.vs = shaders\ourRaytracingShader.vs
 		shaders\overlay.glsl = shaders\overlay.glsl
 		shaders\overlay.vs = shaders\overlay.vs
 		shaders\overlay_points.glsl = shaders\overlay_points.glsl
@@ -218,7 +219,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{3CC3
 		shaders\pickingShader2.vs = shaders\pickingShader2.vs
 		shaders\raytracingShader.glsl = shaders\raytracingShader.glsl
 		shaders\raytracingShader.vs = shaders\raytracingShader.vs
-		shaders\‏‏ourRaytracingShader.vs = shaders\‏‏ourRaytracingShader.vs
+		shaders\rayTracingShader-roee.glsl = shaders\rayTracingShader-roee.glsl
+		shaders\rayTracingShader-roee.vs = shaders\rayTracingShader-roee.vs
 	EndProjectSection
 EndProject
 Global
