@@ -233,31 +233,6 @@ vec3 reflect_vec(vec3 u , vec3 n){
     return normalize(v);
 }
 
-bool checkShadow(int lightNdx, int objNdx, vec3 P)
-{
-    vec4 lightDir = lightsDirection[lightNdx];
-    vec4 lightPos = lightsPosition[lightNdx];
-    vec3 L = -normalize(lightDir.xyz);
-    bool shadow = false;
-    vec2 blocking = vec2(inf, 1.0);
-    if(!isSpotlight(lightDir)){
-        blocking = intersection(P, L, inf, objNdx, true);
-    }
-    else{
-        float cosdeg = dot(normalize(lightDir.xyz), getDirectionVector(lightPos.xyz, P));
-        if(acos(cosdeg) < (acos(lightPos.w))){
-            L = getDirectionVector(P, lightPos.xyz);
-            blocking = intersection(P, L, distance(lightPos.xyz, P), objNdx, true);
-        }
-        else {
-            blocking = vec2(inf, 1.0);
-        }
-    }
-    
-    return (int(blocking.y) != -1);
-}
-
-
 vec3 reflection(vec3 P0, float t, vec4 object, int objNdx, vec4 objColor, vec3 v)
 {
     vec3 P = P0;
@@ -266,7 +241,7 @@ vec3 reflection(vec3 P0, float t, vec4 object, int objNdx, vec4 objColor, vec3 v
     int firstObjNdx = objNdx;
     float firstT = t;
     vec3 firstV = v;
-    for(int i = 0; i <=-1; ++i){
+    for(int i = 0; i <=4; ++i){
         P = P + t*v;
         N = normal(object, P);
         v = reflect_vec(v, N);
