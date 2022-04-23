@@ -119,11 +119,13 @@ vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
     return min(color,vec3(1.0,1.0,1.0));
 }
 
+#define EPSILON 1.5e-6
+
 #define clampColor(color) (clamp((color), 0, 1))
 
 #define OBJ_KIND_PLANE 0
 #define OBJ_KIND_SPHERE 1
-#define isObjectOfKind(object, kind) ((object).w <= 0 == ((kind) == OBJ_KIND_PLANE))
+#define isObjectOfKind(object, kind) (((object).w <= 0) == ((kind) == OBJ_KIND_PLANE))
 #define getObjectKind(object) (isObjectOfKind(object, OBJ_KIND_PLANE) ? OBJ_KIND_PLANE : OBJ_KIND_SPHERE)
 
 #define OBJ_FLAGS_TRANSPARENT 1
@@ -255,17 +257,13 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
     return Intersection(-1, dist, intersectionPoint, normal);
 }
 
-#define EPSILON 1.5e-6
-Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, int objectIndex = -1, bool skipTransparentPlanes = true) {
+Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, bool skipTransparentPlanes = true) {
     Intersection minIntersection = Intersection(-1, -1, vec3(-1), vec3(-1));
     for(int i = 0; i < sizes[0]; i++) {
         vec4 curObject = objects[i];
 
         // Skip transparent planes. The light is considered to go through them without change
-        if (
-            objectIndex == i ||
-            (skipTransparentPlanes && isTransparentPlane(i))
-        ) {
+        if (skipTransparentPlanes && isTransparentPlane(i)) {
             continue;
         }
 
@@ -279,10 +277,6 @@ Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, int objectIndex = -1
         }
     }
     return minIntersection;
-}
-
-float squareMod(float c, float factor, float sideLength) {
-    return mod(int((factor * c) / sideLength), 2);
 }
 
 struct PlaneEquation {
@@ -356,10 +350,10 @@ bool isShadowing_directional(Intersection hit, Intersection blocking, Light ligh
     vec4 blockingObject = objects[blocking.objectIndex];
     bool isBlockingObjectASphere = isObjectOfKind(blockingObject, OBJ_KIND_SPHERE);
     
-    // return isValid && (!isSameObject || false);
+    return isValid && (!isSameObject || false);
     // TODO: why are planes transparent?
-    return isValid && (!isSameObject || false) && isBlockingObjectASphere;
-    // TODO: why does this makes weird black points on the red ball?
+    // return isValid && (!isSameObject || false) && isBlockingObjectASphere;
+    // TODO: why does this makes weird black points on the spheres?
     // return isValid && (!isSameObject || (isObjectASphere && isSamePoint));
 }
 
@@ -396,12 +390,6 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
             vPointToLight = -light.direction;
             // TODO: why without this it looks bad?
             // intensity *= dot(vPointToLight, intersection.pointNormal);
-
-            // I think the point here was that planes are transparent (in the first scene)
-            // so if it hits a plane, it's not shadowing.
-            // Also, the current object is skipped because if the directional light hits it first,
-            // it doesn't count for shadowing.
-            // I don't agree with that logic, but I think that was what happening.
 
             Intersection blockingIntersection = findFirstIntersectingObject(intersection.point, vPointToLight);
             if (isShadowing_directional(intersection, blockingIntersection, light)) {
@@ -442,7 +430,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
             //sphere
             // TODO: why this if?
             //   and why is the `vPointToLight` should not be negated?
-            if (sign(cosIncoming) > 0) {
+            if (cosIncoming > 0) {
                 color += specular;
             }
             color += diffuse;
@@ -484,6 +472,10 @@ void bounceLightRay(inout StraightLineEquation ray, out Intersection intersectio
             vec4 object = objects[intersection.objectIndex];
             // Refract only in case of a transparent sphere, but not if we are tanget to the radius
             if (isObjectOfKind(object, OBJ_KIND_SPHERE) && dot(ray.v, intersection.pointNormal) != 0) {
+                // TODO: calculate the next refraction index based on the object hit:
+                //   * if we hit the same shpere we were before (but now from the inside), set to 1.
+                //   * otherwise, based on whether the object we hit is transparent or not.
+                // TODO: calculate the initial refraction (the very first) index based on the object we start in (if we do)
                 float nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
                 float refractionRatio = refractionIndex / nextRefractionIndex;
 
