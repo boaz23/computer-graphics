@@ -150,7 +150,6 @@ struct Object {
     vec4 info;
     vec3 color;
     float shinniness;
-    int flags;
 };
 
 Object getObject(int i) {
@@ -160,9 +159,8 @@ Object getObject(int i) {
     int kind = getObjectKind(info);
     vec3 color = colorInfo.xyz;
     float shinniness = colorInfo.w;
-    int flags = getObjectFlags(i);
 
-    return Object(kind, info, color, shinniness, flags);
+    return Object(kind, info, color, shinniness);
 }
 
 bool isTransparentPlane(int i) {
@@ -204,7 +202,7 @@ Light getLight(int i, int positionIndex) {
     return Light(kind, intensity, direction, position, spotlight_halfApertureCos);
 }
 
-struct StraightLineEquation {
+struct StraightLine {
     vec3 p0;
     vec3 v;
 };
@@ -257,7 +255,7 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
     return Intersection(-1, dist, intersectionPoint, normal);
 }
 
-Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, bool skipTransparentPlanes = true) {
+Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, bool skipTransparentPlanes) {
     Intersection minIntersection = Intersection(-1, -1, vec3(-1), vec3(-1));
     for(int i = 0; i < sizes[0]; i++) {
         vec4 curObject = objects[i];
@@ -279,17 +277,17 @@ Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, bool skipTransparent
     return minIntersection;
 }
 
-struct PlaneEquation {
+struct BasedPlane {
     vec3 anchor;
     vec3 base1;
     vec3 base2;
 };
 
-PlaneEquation findBaseForPlane(vec4 plane) {
+BasedPlane findBaseForPlane(vec4 plane) {
     float d = plane.w;
     vec3 planeCoefficients = plane.xyz;
     vec3 planeNormal = normalize(planeCoefficients);
-    vec3 anchor = (d / dot(planeCoefficients, planeCoefficients)) * planeCoefficients;
+    vec3 anchor = -(d / dot(planeCoefficients, planeCoefficients)) * planeCoefficients;
     vec3 b1, b2;
     if (plane.x == 0 && plane.y == 0) {
         b1 = vec3(1, 0, 0);
@@ -299,20 +297,20 @@ PlaneEquation findBaseForPlane(vec4 plane) {
         b1 = normalize(vec3(-plane.y, plane.x, 0));
         b2 = normalize(cross(b1, planeNormal));
     }
-    return PlaneEquation(anchor, b1, b2);
+    return BasedPlane(anchor, b1, b2);
 }
 
-vec2 calculateBaseCoordinates(PlaneEquation planeBase, vec3 point) {
+vec2 calculateBaseCoordinates(BasedPlane plane, vec3 point) {
     // `mat2x3` is actually a 3x2 matrix.
     // Solve the following linear equation system:
     //   anchor + mat2x3(base1, base2) * vec2(x, y) = point
     // Equivalently, solve:
     //   mat2x3(base1, base2) * vec2(x, y) = point - anchor
     // The solution vec2(x, y)
-    mat2x3 coefficients = mat2x3(planeBase.base1, planeBase.base2);
+    mat2x3 coefficients = mat2x3(plane.base1, plane.base2);
     mat3x2 coefficientsT = transpose(coefficients);
     mat3x2 leftInverse = inverse(coefficientsT * coefficients) * coefficientsT;
-    return leftInverse * (point - planeBase.anchor);
+    return leftInverse * (point - plane.anchor);
 }
 
 #define PLANE_SQUARE_SIDE_LENGTH (1 / 1.5)
@@ -322,15 +320,17 @@ int calcSquareIndex(float x) {
 
 bool isDarkSquare(vec2 point) {
     bool equalSqaureIndex = calcSquareIndex(point.x) == calcSquareIndex(point.y);
-    bool equalSign = (point.x < 0) == (point.y < 0);
+    // need to specify both `<=` and `>=` because otherwise the colors in the quaters
+    // of the plane where their sign differs will be the opposite of what it should be.
+    bool equalSign = ((point.x >= 0) == (point.y >= 0)) || ((point.x <= 0) == (point.y <= 0));
     return equalSqaureIndex == equalSign;
 }
 
 float calculateDiffuseFactor(vec4 object, vec3 point) {
     float diffuseFactor =1;
     if (isObjectOfKind(object, OBJ_KIND_PLANE)) {
-        PlaneEquation planeEquation = findBaseForPlane(object);
-        vec2 mappedCoordinates = calculateBaseCoordinates(planeEquation, point);
+        BasedPlane plane = findBaseForPlane(object);
+        vec2 mappedCoordinates = calculateBaseCoordinates(plane, point);
         if (isDarkSquare(mappedCoordinates)) {
             diffuseFactor = 0.5;
         }
@@ -391,7 +391,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
             // TODO: why without this it looks bad?
             // intensity *= dot(vPointToLight, intersection.pointNormal);
 
-            Intersection blockingIntersection = findFirstIntersectingObject(intersection.point, vPointToLight);
+            Intersection blockingIntersection = findFirstIntersectingObject(intersection.point, vPointToLight, true);
             if (isShadowing_directional(intersection, blockingIntersection, light)) {
                 continue;
             }
@@ -410,7 +410,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
 
                 // By shooting the ray from the light position in the direction to the point, we avoid
                 // hitting objects which are out of the spotlight's range.
-                Intersection blockingIntersection = findFirstIntersectingObject(light.position, -vPointToLight);
+                Intersection blockingIntersection = findFirstIntersectingObject(light.position, -vPointToLight, true);
                 if (isShadowing_spotlight(intersection, blockingIntersection, light)) {
                     continue;
                 }
@@ -452,21 +452,18 @@ float calcOtherSin(float s) {
 #define REFRACTION_INDEX_NORMAL 1
 #define REFRACTION_INDEX_SPHERE 1.5
 #define MAX_TRACING_COUNT 5
-void bounceLightRay(inout StraightLineEquation ray, out Intersection intersection) {
+void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
     int i;
     float refractionIndex = REFRACTION_INDEX_NORMAL;
-    intersection = findFirstIntersectingObject(ray.p0, ray.v);
+    intersection = findFirstIntersectingObject(ray.p0, ray.v, true);
     for (i = 0; i < MAX_TRACING_COUNT; i++) {
         if (intersection.objectIndex < 0) {
             break;
         }
 
-        float cosIncoming = dot(-ray.v, intersection.pointNormal);
-        float signIncoming = sign(cosIncoming);
-        vec3 normal = signIncoming * intersection.pointNormal;
         if ((getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_REFLECTIVE) != 0) {
-            vec3 vRay = normalize(reflect(ray.v, normal));
-            ray = StraightLineEquation(intersection.point, vRay);
+            vec3 vRay = normalize(reflect(ray.v, intersection.pointNormal));
+            ray = StraightLine(intersection.point, vRay);
         }
         else if ((getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_TRANSPARENT) != 0) {
             vec4 object = objects[intersection.objectIndex];
@@ -478,8 +475,8 @@ void bounceLightRay(inout StraightLineEquation ray, out Intersection intersectio
                 // TODO: calculate the initial refraction (the very first) index based on the object we start in (if we do)
                 float nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
                 float refractionRatio = refractionIndex / nextRefractionIndex;
-                vec3 vRay = normalize(refract(ray.v, normal, refractionRatio));
-                ray = StraightLineEquation(intersection.point, vRay);
+                vec3 vRay = normalize(refract(ray.v, intersection.pointNormal, refractionRatio));
+                ray = StraightLine(intersection.point, vRay);
                 refractionIndex = nextRefractionIndex;
             }
             else {
@@ -493,7 +490,7 @@ void bounceLightRay(inout StraightLineEquation ray, out Intersection intersectio
             break;
         }
 
-        intersection = findFirstIntersectingObject(ray.p0, ray.v);
+        intersection = findFirstIntersectingObject(ray.p0, ray.v, true);
     }
 }
 
@@ -501,7 +498,7 @@ void bounceLightRay(inout StraightLineEquation ray, out Intersection intersectio
 void main()
 {
     vec3 vRay = normalize(position0.xyz - eye.xyz);
-    StraightLineEquation ray = StraightLineEquation(position0.xyz, vRay);
+    StraightLine ray = StraightLine(position0.xyz, vRay);
     Intersection intersection;
     bounceLightRay(ray, intersection);
 
