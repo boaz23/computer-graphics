@@ -134,16 +134,14 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
         if (dSquared <= pow(r, 2)) {
             float th = sqrt(pow(r, 2) - dSquared);
             float t1 = tm - th, t2 = tm + th;
-            if (t1 > 0) {
-                if (t2 > 0) {
-                    dist = min(t1, t2);
-                }
-                else {
-                    dist = t1;
-                }
+            if (!isZeroP(t1)) {
+                dist = t1;
+            }
+            else if (!isZeroP(t2)) {
+                dist = t2;
             }
             else {
-                dist = t2;
+                dist = -1.0;
             }
             intersectionPoint = p0 + ray*dist;
             normal = normalize(intersectionPoint - o);
@@ -152,9 +150,8 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
     return Intersection(-1, dist, intersectionPoint, normal);
 }
 
-Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, bool skipTransparentPlanes, int skipObjectIndex) {
+Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, bool skipTransparentPlanes, int skipObjectIndex, bool isForShadowing) {
     Intersection minIntersection = Intersection(-1, -1, vec3(-1), vec3(-1));
-    bool isForShadowing = skipObjectIndex >= 0;
     for(int i = 0; i < sizes[0]; i++) {
         vec4 curObject = objects[i];
 
@@ -174,6 +171,9 @@ Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, bool skipTransparent
         ) {
             intersection.objectIndex = i;
             minIntersection = intersection;
+            if (isForShadowing) {
+                break;
+            }
         }
     }
     return minIntersection;
@@ -288,7 +288,8 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
                 intersection.point,
                 vPointToLight,
                 true,
-                intersection.objectIndex
+                intersection.objectIndex,
+                true
             );
         }
         else {
@@ -309,7 +310,8 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
                     light.position,
                     -vPointToLight,
                     true,
-                    intersection.objectIndex
+                    intersection.objectIndex,
+                    true
                 );
             }
         }
@@ -323,16 +325,14 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
         vec3 diffuse = diffuseFactors * object.color * intensity * cosIncoming;
         vec3 refl = normalize(reflect(-vPointToLight, normal));
         vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), object.shinniness);
-        // TODO: why this max?
 
         specular = clampColor(specular);
         if (object.kind == OBJ_KIND_SPHERE) {
             //sphere
             // TODO: why this if?
-            //   and why is the `vPointToLight` should not be negated?
-            if (!isZeroP(cosIncoming)) {
-                color += specular;
-            }
+            // if (!isZeroP(cosIncoming)) {
+            color += specular;
+            // }
             diffuse = clampColor(diffuse);
             color += diffuse;
         }
@@ -349,11 +349,11 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
 
 #define REFRACTION_INDEX_NORMAL 1
 #define REFRACTION_INDEX_SPHERE 1.5
-#define MAX_TRACING_COUNT 0
+#define MAX_TRACING_COUNT 5
 void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
     int i;
     float refractionIndex = REFRACTION_INDEX_NORMAL;
-    intersection = findFirstIntersectingObject(ray.p0, ray.v, true, -1);
+    intersection = findFirstIntersectingObject(ray.p0, ray.v, true, -1, false);
     for (i = 0; i < MAX_TRACING_COUNT; i++) {
         if (intersection.objectIndex < 0) {
             break;
@@ -388,7 +388,7 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
             break;
         }
 
-        intersection = findFirstIntersectingObject(ray.p0, ray.v, true, -1);
+        intersection = findFirstIntersectingObject(ray.p0, ray.v, true, intersection.objectIndex, false);
     }
 }
 
@@ -396,20 +396,13 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
 void main()
 {
     vec3 vRay = normalize(position0.xyz - eye.xyz);
-    StraightLine ray = StraightLine(position0.xyz, vRay);
+    StraightLine ray = StraightLine(eye.xyz, vRay);
     Intersection intersection;
     bounceLightRay(ray, intersection);
-
-    // interObject = -1;
-    // float t = intersection(interObject, position0, vRay);
-    // interPoint = position0 + t*vRay;
 
     vec3 color = vec3(0);
     if (intersection.objectIndex >= 0) {
         color = calculateColor_noTracing(vRay, intersection);
-        // float diffuseFactor = calculateDiffuseFactor(objects[intersection.objectIndex], intersection.point);
-        // color = colorCalc(intersection.objectIndex, intersection.point, vRay, diffuseFactor);
-        // color = vec4(1, 0, 0, 1);
     }
     outColor = vec4(color, 1);
 }
