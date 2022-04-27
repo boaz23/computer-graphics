@@ -14,122 +14,20 @@ in vec3 normal0;
 
 layout (location = 0) out vec4 outColor;
 
-float findIntersection_Tamir(inout int sourceIndx,vec3 sourcePoint,vec3 v)
-{
-    float tmin = 1.0e10;
-    int indx = -1;
-    for(int i=0;i<sizes.x;i++) //every object
-    {
-        if (i==sourceIndx)
-            continue;
-        if (objects[i].w > 0) //sphere
-        {
-            vec3 p0o =  objects[i].xyz - sourcePoint;
-            float r = objects[i].w;
-            float b = dot(v,p0o);
-            float delta = b*b - dot(p0o,p0o) + r*r;
-             float t;
-            if(delta >= 0)
-            {
-                if(b>=0)
-                    t = b - sqrt(delta);
-                else
-                    t = b + sqrt(delta);
-                if(t<tmin && t>0)
-                {
-                    tmin = t;
-                    indx = i;
-                }
-            }
-        }
-        else  //plane
-        {
-            vec3 n =  normalize(objects[i].xyz);
-            vec3 p0o = -objects[i].w*n / length(objects[i].xyz) - sourcePoint;
-            float t = dot(n, p0o) / dot(n, v);
-            if(t>0 && t<tmin)
-            {
-                tmin = t;
-                indx = i;
-            }
-        }
-    }
-    sourceIndx = indx;
-    return tmin;
-}
-
-
-//body index in objects, point on surface of object, diffuseFactor for plane squares
-vec3 colorCalc(int sourceIndx, vec3 sourcePoint,vec3 u,float diffuseFactor)
-{
-    vec3 color = ambient.rgb*objColors[sourceIndx].rgb;
-    float specularCoeff = 0.7f;
-    for (int i = 0;i<sizes.y;i++) //every light source
-    {
-        vec3 v;
-        if (lightsDirection[i].w < 0.5 ) //directional
-        {
-            int indx = sourceIndx;
-            v = normalize(lightsDirection[i].xyz);
-            //  v = normalize(vec3(0.0,0.5,-1.0));
-            float t = findIntersection_Tamir(indx,sourcePoint,-v);
-
-            // TODO: tamir, why??? planes are see through?
-            if (!(indx < 0 || objects[indx].w <= 0)) //no intersection
-            {
-                continue;
-            }
-        }
-        else  //flashlight
-        {
-            int indx = -1;
-            v = -normalize(lightsPosition[i].xyz - sourcePoint);
-            if (dot(v,normalize(lightsDirection[i].xyz))<lightsPosition[i].w)
-            {
-                continue;
-            }
-            else
-            {
-                float t = findIntersection_Tamir(indx,lightsPosition[i].xyz,v);
-                if (indx != sourceIndx) //no intersection
-                {
-                    continue;
-                }
-            }
-        }
-
-        if (objects[sourceIndx].w > 0) //sphere
-        {
-
-            vec3 n = -normalize(sourcePoint - objects[sourceIndx].xyz);
-            vec3 refl = normalize(reflect(v,n));
-            if (dot(v,n) > 0.0)
-                color += max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl, u), objColors[sourceIndx].a), vec3(0.0,0.0,0.0));
-            color+= max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(v, n), vec3(0.0,0.0,0.0));
-        }
-        else  //plane
-        {
-            vec3 n = normalize(objects[sourceIndx].xyz);
-            vec3 refl = normalize(reflect(v,n));
-            color = min(color + max(specularCoeff * lightsIntensity[i].rgb * pow(dot(refl, u), objColors[sourceIndx].a), vec3(0.0,0.0,0.0)), vec3(1.0,1.0,1.0));
-            color = min(color + max(diffuseFactor * objColors[sourceIndx].rgb * lightsIntensity[i].rgb * dot(v, n), vec3(0.0,0.0,0.0)), vec3(1.0,1.0,1.0));
-        }
-    }
-
-    return min(color,vec3(1.0,1.0,1.0));
-}
-
-#define EPSILON 1.5e-6
+#define EPSILON 1e-10
 
 #define clampColor(color) (clamp((color), 0, 1))
+
+#define isZeroP(x) (x < EPSILON)
+#define isZero(x) isZeroP(abs(x))
 
 #define OBJ_KIND_PLANE 0
 #define OBJ_KIND_SPHERE 1
 #define isObjectOfKind(object, kind) (((object).w <= 0) == ((kind) == OBJ_KIND_PLANE))
 #define getObjectKind(object) (isObjectOfKind(object, OBJ_KIND_PLANE) ? OBJ_KIND_PLANE : OBJ_KIND_SPHERE)
 
-#define OBJ_FLAGS_TRANSPARENT 1
-#define OBJ_FLAGS_REFLECTIVE 2
+#define OBJ_FLAGS_TRANSPARENT (1 << 0)
+#define OBJ_FLAGS_REFLECTIVE (1 << 1)
 int getObjectFlags(int i) {
     if (i < 0) {
         return 0;
@@ -165,7 +63,7 @@ Object getObject(int i) {
 
 bool isTransparentPlane(int i) {
     vec4 object = objects[i];
-    return true 
+    return true
         && isObjectOfKind(object, OBJ_KIND_PLANE)
         && (getObjectFlags(i) & OBJ_FLAGS_TRANSPARENT) != 0;
 }
@@ -218,9 +116,8 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
     float dist = -1.0;
     vec3 normal = vec3(-1);
     vec3 intersectionPoint = vec3(-1);
-    if(isObjectOfKind(object, OBJ_KIND_PLANE)) {
+    if (isObjectOfKind(object, OBJ_KIND_PLANE)) {
         //plane
-
         float d = object.w;
         vec3 perpendicular = object.xyz;
         normal = normalize(perpendicular);
@@ -234,11 +131,11 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
         vec3 L = o - p0;
         float tm = dot(L, ray);
         float dSquared = pow(length(L), 2) - pow(tm, 2);
-        if(dSquared <= pow(r, 2)) {
+        if (dSquared <= pow(r, 2)) {
             float th = sqrt(pow(r, 2) - dSquared);
             float t1 = tm - th, t2 = tm + th;
-            if(t1 > 0) {
-                if(t2 > 0) {
+            if (t1 > 0) {
+                if (t2 > 0) {
                     dist = min(t1, t2);
                 }
                 else {
@@ -255,20 +152,25 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
     return Intersection(-1, dist, intersectionPoint, normal);
 }
 
-Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, bool skipTransparentPlanes) {
+Intersection findFirstIntersectingObject(vec3 p0, vec3 ray, bool skipTransparentPlanes, int skipObjectIndex) {
     Intersection minIntersection = Intersection(-1, -1, vec3(-1), vec3(-1));
+    bool isForShadowing = skipObjectIndex >= 0;
     for(int i = 0; i < sizes[0]; i++) {
         vec4 curObject = objects[i];
 
         // Skip transparent planes. The light is considered to go through them without change
-        if (skipTransparentPlanes && isTransparentPlane(i)) {
+        if (false
+            || i == skipObjectIndex
+            || (skipTransparentPlanes && isTransparentPlane(i))
+            || (isForShadowing &&isObjectOfKind(curObject, OBJ_KIND_PLANE))
+        ) {
             continue;
         }
 
         Intersection intersection = findIntersection(curObject, p0, ray);
-        if (
-            intersection.distance > EPSILON &&
-            (minIntersection.objectIndex == -1 || intersection.distance < minIntersection.distance)
+        if (true
+            && !isZeroP(intersection.distance)
+            && (minIntersection.objectIndex == -1 || intersection.distance < minIntersection.distance)
         ) {
             intersection.objectIndex = i;
             minIntersection = intersection;
@@ -339,10 +241,10 @@ float calculateDiffuseFactor(vec4 object, vec3 point) {
     return diffuseFactor;
 }
 
-bool isShadowing_directional(Intersection hit, Intersection blocking, Light light) {
+bool isShadowing(Intersection hit, Intersection blocking, Light light) {
     bool isValid = blocking.objectIndex >= 0;
     bool isSameObject = blocking.objectIndex == hit.objectIndex;
-    bool isSamePoint = (hit.point != blocking.point && length(hit.point - blocking.point) > EPSILON);
+    bool isSamePoint = (hit.point != blocking.point && isZeroP(length(hit.point - blocking.point)));
     
     vec4 object = objects[hit.objectIndex];
     bool isObjectASphere = isObjectOfKind(object, OBJ_KIND_SPHERE);
@@ -350,22 +252,11 @@ bool isShadowing_directional(Intersection hit, Intersection blocking, Light ligh
     vec4 blockingObject = objects[blocking.objectIndex];
     bool isBlockingObjectASphere = isObjectOfKind(blockingObject, OBJ_KIND_SPHERE);
     
-    return isValid && (!isSameObject || false);
+    return isValid;
+    // return isValid && (!isSameObject || false);
     // TODO: why are planes transparent?
     // return isValid && (!isSameObject || false) && isBlockingObjectASphere;
     // TODO: why does this makes weird black points on the spheres?
-    // return isValid && (!isSameObject || (isObjectASphere && isSamePoint));
-}
-
-bool isShadowing_spotlight(Intersection hit, Intersection blocking, Light light) {
-    bool isValid = blocking.objectIndex >= 0;
-    bool isSameObject = blocking.objectIndex == hit.objectIndex;
-    bool isSamePoint = (hit.point != blocking.point && length(hit.point - blocking.point) > EPSILON);
-
-    vec4 object = objects[hit.objectIndex];
-    bool isObjectASphere = isObjectOfKind(object, OBJ_KIND_SPHERE);
-
-    return isValid && (!isSameObject || false);
     // return isValid && (!isSameObject || (isObjectASphere && isSamePoint));
 }
 
@@ -375,8 +266,9 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
     vec3 specularFactors = vec3(0.7);
     vec3 diffuseFactors = vec3(calculateDiffuseFactor(object.info, intersection.point));
 
-    object.color = diffuseFactors * object.color;
-    vec3 color = object.color * ambient.xyz;
+    // object.color = diffuseFactors * object.color;
+    vec3 color = object.color;
+    color *= ambient.xyz;
 
     int spotlightIndex = 0;
     for(int i = 0; i < sizes[1]; i++) {
@@ -386,15 +278,18 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
         // intensity *= dot(vPointToLight, pointNormal);
 
         vec3 vPointToLight;
+        Intersection blockingIntersection;
         if (light.kind == LIGHT_KIND_DIRECTIONAL) {
             vPointToLight = -light.direction;
             // TODO: why without this it looks bad?
             // intensity *= dot(vPointToLight, intersection.pointNormal);
 
-            Intersection blockingIntersection = findFirstIntersectingObject(intersection.point, vPointToLight, true);
-            if (isShadowing_directional(intersection, blockingIntersection, light)) {
-                continue;
-            }
+            blockingIntersection = findFirstIntersectingObject(
+                intersection.point,
+                vPointToLight,
+                true,
+                intersection.objectIndex
+            );
         }
         else {
             spotlightIndex += 1;
@@ -410,34 +305,41 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
 
                 // By shooting the ray from the light position in the direction to the point, we avoid
                 // hitting objects which are out of the spotlight's range.
-                Intersection blockingIntersection = findFirstIntersectingObject(light.position, -vPointToLight, true);
-                if (isShadowing_spotlight(intersection, blockingIntersection, light)) {
-                    continue;
-                }
+                blockingIntersection = findFirstIntersectingObject(
+                    light.position,
+                    -vPointToLight,
+                    true,
+                    intersection.objectIndex
+                );
             }
         }
 
+        if (isShadowing(intersection, blockingIntersection, light)) {
+            continue;
+        }
+
         float cosIncoming = dot(intersection.pointNormal, vPointToLight);
-        vec3 normal = sign(cosIncoming) * intersection.pointNormal;
-        vec3 diffuse = object.color * intensity * abs(cosIncoming);
+        vec3 normal = intersection.pointNormal;
+        vec3 diffuse = diffuseFactors * object.color * intensity * cosIncoming;
         vec3 refl = normalize(reflect(-vPointToLight, normal));
         vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), object.shinniness);
         // TODO: why this max?
 
-        diffuse = clampColor(diffuse);
         specular = clampColor(specular);
-        if(object.kind == OBJ_KIND_SPHERE) {
+        if (object.kind == OBJ_KIND_SPHERE) {
             //sphere
             // TODO: why this if?
             //   and why is the `vPointToLight` should not be negated?
-            if (cosIncoming > 0) {
+            if (!isZeroP(cosIncoming)) {
                 color += specular;
             }
+            diffuse = clampColor(diffuse);
             color += diffuse;
         }
         else {
             // plane
             color += specular;
+            diffuse = clampColor(abs(diffuse));
             color += diffuse;
         }
     }
@@ -445,17 +347,13 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
     return clampColor(color);
 }
 
-float calcOtherSin(float s) {
-    return sqrt(1 - s*s);
-}
-
 #define REFRACTION_INDEX_NORMAL 1
 #define REFRACTION_INDEX_SPHERE 1.5
-#define MAX_TRACING_COUNT 5
+#define MAX_TRACING_COUNT 0
 void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
     int i;
     float refractionIndex = REFRACTION_INDEX_NORMAL;
-    intersection = findFirstIntersectingObject(ray.p0, ray.v, true);
+    intersection = findFirstIntersectingObject(ray.p0, ray.v, true, -1);
     for (i = 0; i < MAX_TRACING_COUNT; i++) {
         if (intersection.objectIndex < 0) {
             break;
@@ -468,7 +366,7 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
         else if ((getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_TRANSPARENT) != 0) {
             vec4 object = objects[intersection.objectIndex];
             // Refract only in case of a transparent sphere, but not if we are tanget to the radius
-            if (isObjectOfKind(object, OBJ_KIND_SPHERE) && dot(ray.v, intersection.pointNormal) != 0) {
+            if (isObjectOfKind(object, OBJ_KIND_SPHERE) && !isZero(dot(ray.v, intersection.pointNormal))) {
                 // TODO: calculate the next refraction index based on the object hit:
                 //   * if we hit the same shpere we were before (but now from the inside), set to 1.
                 //   * otherwise, based on whether the object we hit is transparent or not.
@@ -490,7 +388,7 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
             break;
         }
 
-        intersection = findFirstIntersectingObject(ray.p0, ray.v, true);
+        intersection = findFirstIntersectingObject(ray.p0, ray.v, true, -1);
     }
 }
 
@@ -506,11 +404,8 @@ void main()
     // float t = intersection(interObject, position0, vRay);
     // interPoint = position0 + t*vRay;
 
-    vec3 color;
-    if(intersection.objectIndex < 0) {
-        color = vec3(0);
-    }
-    else {
+    vec3 color = vec3(0);
+    if (intersection.objectIndex >= 0) {
         color = calculateColor_noTracing(vRay, intersection);
         // float diffuseFactor = calculateDiffuseFactor(objects[intersection.objectIndex], intersection.point);
         // color = colorCalc(intersection.objectIndex, intersection.point, vRay, diffuseFactor);
