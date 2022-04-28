@@ -130,9 +130,9 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
         float r = object.w;
         vec3 L = o - p0;
         float tm = dot(L, ray);
-        float dSquared = pow(length(L), 2) - pow(tm, 2);
-        if (dSquared <= pow(r, 2)) {
-            float th = sqrt(pow(r, 2) - dSquared);
+        float dSquared = (length(L)*length(L)) - (tm*tm);
+        if (dSquared <= r*r) {
+            float th = sqrt(r*r - dSquared);
             float t1 = tm - th, t2 = tm + th;
             if (!isZeroP(t1)) {
                 dist = t1;
@@ -266,7 +266,6 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
     vec3 specularFactors = vec3(0.7);
     vec3 diffuseFactors = vec3(calculateDiffuseFactor(object.info, intersection.point));
 
-    // object.color = diffuseFactors * object.color;
     vec3 color = object.color;
     color *= ambient.xyz;
 
@@ -297,7 +296,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
             }
             else {
                 // in range
-
+                
                 intensity *= cosBetween;
                 // By shooting the ray from the light position in the direction to the point, we avoid
                 // hitting objects which are out of the spotlight's range.
@@ -321,11 +320,11 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
         vec3 refl = normalize(reflect(-vPointToLight, normal));
         vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), object.shinniness);
 
-        specular = clampColor(specular);
         if (object.kind == OBJ_KIND_PLANE) {
             diffuse = abs(diffuse);
         }
         diffuse = clampColor(diffuse);
+        specular = clampColor(specular);
         color += specular;
         color += diffuse;
     }
@@ -344,7 +343,7 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
         if (intersection.objectIndex < 0) {
             break;
         }
-
+        
         if ((getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_REFLECTIVE) != 0) {
             vec3 vRay = normalize(reflect(ray.v, intersection.pointNormal));
             ray = StraightLine(intersection.point, vRay);
@@ -387,7 +386,7 @@ void main()
 
     vec3 color = vec3(0);
     if (intersection.objectIndex >= 0) {
-        color = calculateColor_noTracing(vRay, intersection);
+        color = calculateColor_noTracing(ray.v, intersection);
     }
     outColor = vec4(color, 1);
 }
