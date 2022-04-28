@@ -274,15 +274,11 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
     for(int i = 0; i < sizes[1]; i++) {
         Light light = getLight(i, spotlightIndex);
 
-        vec3 intensity = light.intensity;
-        // intensity *= dot(vPointToLight, pointNormal);
-
         vec3 vPointToLight;
+        vec3 intensity = light.intensity;
         Intersection blockingIntersection;
         if (light.kind == LIGHT_KIND_DIRECTIONAL) {
             vPointToLight = -light.direction;
-            // TODO: why without this it looks bad?
-            // intensity *= dot(vPointToLight, intersection.pointNormal);
 
             blockingIntersection = findFirstIntersectingObject(
                 intersection.point,
@@ -301,9 +297,8 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
             }
             else {
                 // in range
-                // TODO: do we need to?
-                intensity *= cosBetween;
 
+                intensity *= cosBetween;
                 // By shooting the ray from the light position in the direction to the point, we avoid
                 // hitting objects which are out of the spotlight's range.
                 blockingIntersection = findFirstIntersectingObject(
@@ -327,21 +322,12 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
         vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), object.shinniness);
 
         specular = clampColor(specular);
-        if (object.kind == OBJ_KIND_SPHERE) {
-            //sphere
-            // TODO: why this if?
-            // if (!isZeroP(cosIncoming)) {
-            color += specular;
-            // }
-            diffuse = clampColor(diffuse);
-            color += diffuse;
+        if (object.kind == OBJ_KIND_PLANE) {
+            diffuse = abs(diffuse);
         }
-        else {
-            // plane
-            color += specular;
-            diffuse = clampColor(abs(diffuse));
-            color += diffuse;
-        }
+        diffuse = clampColor(diffuse);
+        color += specular;
+        color += diffuse;
     }
 
     return clampColor(color);
@@ -392,7 +378,6 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
     }
 }
 
-// TODO: weird dots??
 void main()
 {
     vec3 vRay = normalize(position0.xyz - eye.xyz);
