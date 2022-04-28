@@ -24,12 +24,16 @@ Assignment2::Assignment2()
 void Assignment2::Init()
 {		
 	SceneParser("scene.txt", &sceneData);
-	AddShader("shaders/ourRaytracingShader");
-	AddShape(Plane, -1, TRIANGLES,0);
+	AddShader("shaders/ourRayTracingShader");
+    AddShader("shaders/rayTracingShader-roee");
+	AddShape(Plane, -1, TRIANGLES, 0);
+    AddShape(Plane, -1, TRIANGLES, 1);
 
 	SetShapeShader(0, 0);
-	pickedShape = 0;
+    SetShapeShader(1, 1);
+    pickedShape = 0;
 	SetShapeStatic(0);
+    SetShapeStatic(1);
 }
 
 void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx)

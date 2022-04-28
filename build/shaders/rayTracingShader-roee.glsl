@@ -12,10 +12,10 @@ uniform vec4 screenCenter;
 
 in vec3 position0;
 
-#define inf 1.0/0.0
 
 #define delta 0.00000000001
 
+#define inf 1.0/0.0
 #define vecinf vec4(inf, inf, inf, -1.0)
 
 bool isPlane(vec4 object)
@@ -34,7 +34,7 @@ vec3 normal(vec4 object, vec3 P){
 
 vec3 getDirectionVector()
 {
-    vec3 P = position0 + screenCenter.xyz;
+    vec3 P = position0;
     vec3 tv = P - eye.xyz;
     return normalize(tv);
 }
@@ -122,27 +122,102 @@ float getIntersection(vec3 P0, vec3 v, vec4 object)
     return inf;
 }
 
-vec2 intersection(vec3 P0,vec3 v, float targetDist, int thisNdx, bool shadow)
-{
-    float closestObject = -1.0;
-    float closestT = 0.0;
-    float closestDist = targetDist;
-    float t;
-    vec3 P;
-    float dist;
-    for(int i = 0; i < sizes[0]; ++i){
-        if(i != thisNdx && !(shadow && isPlane(objects[i]))){
-            t = getIntersection(P0, v, objects[i]);
-            P = P0 + t*v;
-            if(t < inf  && (dist = distance(P0, P)) < closestDist)
-            {   
-                closestDist = dist;
-                closestT = t;
-                closestObject = float(i);
+//vec2 intersection(vec3 P0,vec3 v, float targetDist, int thisNdx, bool shadow)
+//{
+//    float closestObject = -1.0;
+//    float closestT = 0.0;
+//    float closestDist = targetDist;
+//    float t;
+//    vec3 P;
+//    float dist;
+//    for(int i = 0; i < sizes[0]; ++i){
+//        if(i != thisNdx && !(shadow && isPlane(objects[i]))){
+//            t = getIntersection(P0, v, objects[i]);
+//            P = P0 + t*v;
+//            if(t < inf  && (dist = distance(P0, P)) < closestDist)
+//            {   
+//                closestDist = dist;
+//                closestT = t;
+//                closestObject = float(i);
+//            }
+//        }
+//    }
+//    return vec2(closestT, closestObject);
+//}
+
+struct Intersection {
+    int objectIndex;
+    float distance;
+    vec3 point;
+    vec3 pointNormal;
+};
+
+Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
+    float dist = -1.0;
+    vec3 normal = vec3(-1);
+    vec3 intersectionPoint = vec3(-1);
+    if (isPlane(object)) {
+        //plane
+        float d = object.w;
+        vec3 perpendicular = object.xyz;
+        normal = normalize(perpendicular);
+        dist = -(dot(perpendicular, p0) + d) / dot(perpendicular, ray);
+        intersectionPoint = p0 + ray*dist;
+    }
+    else {
+        //sphere
+        vec3 o = object.xyz;
+        float r = object.w;
+        vec3 L = o - p0;
+        float tm = dot(L, ray);
+        float dSquared = pow(length(L), 2) - pow(tm, 2);
+        if (dSquared <= pow(r, 2)) {
+            float th = sqrt(pow(r, 2) - dSquared);
+            float t1 = tm - th, t2 = tm + th;
+            if (t1 >= delta) {
+                dist = t1;
+            }
+            else if (t2 >= delta) {
+                dist = t2;
+            }
+            else {
+                dist = -1.0;
+            }
+            intersectionPoint = p0 + ray*dist;
+            normal = normalize(intersectionPoint - o);
+        }
+    }
+    return Intersection(-1, dist, intersectionPoint, normal);
+}
+
+vec2 intersection(vec3 P0,vec3 v, float targetDist, int thisNdx, bool shadow) {
+    Intersection minIntersection = Intersection(-1, -1, vec3(-1), vec3(-1));
+    for(int i = 0; i < sizes[0]; i++) {
+        vec4 curObject = objects[i];
+
+        // Skip transparent planes. The light is considered to go through them without change
+        if (false
+            || i == thisNdx
+            || (shadow && isPlane(curObject))
+        ) {
+            continue;
+        }
+
+        Intersection intersection = findIntersection(curObject, P0, v);
+        float t = intersection.distance;
+        if (true
+            && t >= delta && t < targetDist && t < inf
+            && (minIntersection.objectIndex == -1 || t < minIntersection.distance)
+        ) {
+            intersection.objectIndex = i;
+            minIntersection = intersection;
+            if (shadow) {
+                break;
             }
         }
     }
-    return vec2(closestT, closestObject);
+
+    return vec2(minIntersection.distance, float(minIntersection.objectIndex));
 }
 
 vec3 defuse(vec3 N, vec3 L, vec3 Kd){
@@ -151,9 +226,19 @@ vec3 defuse(vec3 N, vec3 L, vec3 Kd){
     return clamp(Idef, 0.0, 1.0);
 }
 
+float ourPow(float x, float e) {
+    int e_i = int(e);
+    float p = 1.0;
+    for (int i = 0; i < e; i++) {
+        p *= x;
+    }
+    return p;
+}
+
 vec3 specular(vec3 negV,vec3 N, vec3 L, float n){
     // from wikipedia https://en.wikipedia.org/wiki/Phong_reflection_model
-    vec3 R = 2*(dot(normalize(L)  , N)) * N - normalize(L);
+//    vec3 R = 2*(dot(normalize(L)  , N)) * N - normalize(L);
+    vec3 R = -reflect(L, N);
     float RDotV = max(0, dot(negV , R));
     return clamp(vec3(0.7,0.7,0.7) *  pow(RDotV, n),0.0, 1.0);
 }
@@ -175,18 +260,19 @@ vec3 defAndSpec(vec3 P, vec4 lightPos, vec4 lightInt, vec4 lightDir, vec4 object
 
     float n = objColor.w;
 
-    vec3 L = -normalize(lightDir.xyz);
+    vec3 L;
 
     bool shadow = false;
     vec2 blocking = vec2(inf, 1.0);
     if(!isSpotlight(lightDir)){
         blocking = intersection(P, L, inf, objNdx, true);
+        L = -normalize(lightDir.xyz);
     }
     else{
         float cosdeg = dot(normalize(lightDir.xyz), getDirectionVector(lightPos.xyz, P));
         if(acos(cosdeg) < (acos(lightPos.w))){
             L = getDirectionVector(P, lightPos.xyz);
-            blocking = intersection(P, L, distance(lightPos.xyz, P), objNdx, true);
+            blocking = intersection(lightPos.xyz, -L, inf, objNdx, true);
         }
         else {
             blocking = vec2(inf, 1.0);
@@ -197,6 +283,7 @@ vec3 defAndSpec(vec3 P, vec4 lightPos, vec4 lightInt, vec4 lightDir, vec4 object
     
     if (!shadow){
         vec3 def = defuse(N, L,  Kd);
+//        vec3 def = vec3(0);
         vec3 spec = specular(-v,  N , L, n);
         return (def+spec)*lightInt.xyz;
     }
@@ -204,7 +291,7 @@ vec3 defAndSpec(vec3 P, vec4 lightPos, vec4 lightInt, vec4 lightDir, vec4 object
 }
 
 vec3 colorCalc(vec3 P0, float t, vec4 object, int objNdx, vec4 objColor , vec3 v)
-{   
+{
     vec3 P = P0 + t*v;
     vec3 Ka = objColor.xyz; 
     vec3 Ia = ambient.xyz;
@@ -244,7 +331,7 @@ vec3 reflection(vec3 P0, float t, vec4 object, int objNdx, vec4 objColor, vec3 v
     for(int i = 0; i <=4; ++i){
         P = P + t*v;
         N = normal(object, P);
-        v = reflect_vec(v, N);
+        v = reflect(v, N);
         t_and_objNdx = intersection(P, v, inf, objNdx, false);
         t = t_and_objNdx.x;
         objNdx = int(t_and_objNdx.y);
