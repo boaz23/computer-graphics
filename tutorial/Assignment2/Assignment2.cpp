@@ -25,19 +25,15 @@ void Assignment2::Init()
 {		
 	SceneParser("scene.txt", &sceneData);
 	AddShader("shaders/ourRayTracingShader");
-    //AddShader("shaders/rayTracingShader-roee");
 	AddShape(Plane, -1, TRIANGLES, 0);
-    //AddShape(Plane, -1, TRIANGLES, 1);
 	xOld = 0;
 	yOld = 0;
 	xRel = 0;
 	yRel = 0;
 
 	SetShapeShader(0, 0);
-    //SetShapeShader(1, 1);
     pickedShape = 0;
 	SetShapeStatic(0);
-    //SetShapeStatic(1);
 	upDownAngle = 0.0;
 	leftRightAngle = 0.0;
 	scale = 1.0;
