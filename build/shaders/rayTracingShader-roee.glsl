@@ -29,7 +29,7 @@ bool isSpotlight(vec4 lightDir)
 }
 
 vec3 normal(vec4 object, vec3 P){
-    return !isPlane(object) ? normalize(P - object.xyz) :  -normalize(object.xyz);
+    return !isPlane(object) ? normalize(P - object.xyz) : -normalize(object.xyz);
 }
 
 vec3 getDirectionVector()
@@ -170,9 +170,9 @@ Intersection findIntersection(vec4 object, vec3 p0, vec3 ray) {
         float r = object.w;
         vec3 L = o - p0;
         float tm = dot(L, ray);
-        float dSquared = pow(length(L), 2) - pow(tm, 2);
-        if (dSquared <= pow(r, 2)) {
-            float th = sqrt(pow(r, 2) - dSquared);
+        float dSquared = (length(L)*length(L)) - (tm*tm);
+        if (dSquared <= r*r) {
+            float th = sqrt(r*r - dSquared);
             float t1 = tm - th, t2 = tm + th;
             if (t1 >= delta) {
                 dist = t1;
@@ -207,7 +207,7 @@ vec2 intersection(vec3 P0,vec3 v, float targetDist, int thisNdx, bool shadow) {
         float t = intersection.distance;
         if (true
             && t >= delta && t < targetDist && t < inf
-            && (minIntersection.objectIndex == -1 || t < minIntersection.distance)
+            && (minIntersection.objectIndex < 0 || t < minIntersection.distance)
         ) {
             intersection.objectIndex = i;
             minIntersection = intersection;
@@ -261,12 +261,12 @@ vec3 defAndSpec(vec3 P, vec4 lightPos, vec4 lightInt, vec4 lightDir, vec4 object
     float n = objColor.w;
 
     vec3 L;
-
+    
     bool shadow = false;
     vec2 blocking = vec2(inf, 1.0);
     if(!isSpotlight(lightDir)){
-        blocking = intersection(P, L, inf, objNdx, true);
         L = -normalize(lightDir.xyz);
+        blocking = intersection(P, L, inf, objNdx, true);
     }
     else{
         float cosdeg = dot(normalize(lightDir.xyz), getDirectionVector(lightPos.xyz, P));
@@ -279,12 +279,13 @@ vec3 defAndSpec(vec3 P, vec4 lightPos, vec4 lightInt, vec4 lightDir, vec4 object
         }
     }
     
-    shadow = (int(blocking.y) != -1);
+    shadow = (int(blocking.y) >= 0);
     
     if (!shadow){
         vec3 def = defuse(N, L,  Kd);
 //        vec3 def = vec3(0);
         vec3 spec = specular(-v,  N , L, n);
+//        vec3 spec = vec3(0);
         return (def+spec)*lightInt.xyz;
     }
     return vec3(0.0, 0.0, 0.0);
@@ -298,8 +299,8 @@ vec3 colorCalc(vec3 P0, float t, vec4 object, int objNdx, vec4 objColor , vec3 v
     vec3 I = vec3(0.0, 0.0, 0.0);
     I += clamp(Ka*Ia, 0.0, 1.0);
     int spotNdx = 0;
-    for(int i = 0; i <sizes[1]; ++i)
-    {   
+    for(int i = 0; i < sizes[1]; ++i)
+    {
         if(!isSpotlight(lightsDirection[i]))
         {
             I += defAndSpec(P, vecinf, lightsIntensity[i], lightsDirection[i], object, objNdx, objColor, v);
@@ -328,7 +329,7 @@ vec3 reflection(vec3 P0, float t, vec4 object, int objNdx, vec4 objColor, vec3 v
     int firstObjNdx = objNdx;
     float firstT = t;
     vec3 firstV = v;
-    for(int i = 0; i <=4; ++i){
+    for(int i = 0; i < 5; ++i) {
         P = P + t*v;
         N = normal(object, P);
         v = reflect(v, N);
@@ -337,13 +338,13 @@ vec3 reflection(vec3 P0, float t, vec4 object, int objNdx, vec4 objColor, vec3 v
         objNdx = int(t_and_objNdx.y);
         object = objects[objNdx];
         objColor = objColors[objNdx];
-        if(objNdx >= int(sizes[2]))
-        {
-            break;
-        }
-        else if(objNdx == -1)
+        if(objNdx == -1)
         {
             return vec3(0.0,0.0,0.0);
+        }
+        else if(objNdx >= int(sizes[2]))
+        {
+            break;
         }
     }
     return colorCalc(P, t, object, objNdx, objColor, v);
@@ -355,11 +356,12 @@ void main()
     vec2 t_and_objNdx = intersection(eye.xyz, v, inf, -1, false);
     float t = t_and_objNdx.x;
     int objNdx = int(t_and_objNdx.y);
-    vec3 color = vec3(0.0, 1.0, 0.0);
-    if(t > 0.0)
+    vec3 color = vec3(0.0, 0.0, 0.0);
+    if(objNdx >= 0)
     {
-        if(float(objNdx) >= sizes[2])
+        if(float(objNdx) >= sizes[2]) {
             color = colorCalc(eye.xyz, t, objects[objNdx], objNdx, objColors[objNdx], v);
+        }
         else
             color = reflection(eye.xyz, t, objects[objNdx], objNdx, objColors[objNdx], v);
     }
