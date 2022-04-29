@@ -15,8 +15,7 @@
 			
 			glfwGetCursorPos(window, &x2, &y2);
 			rndr->UpdatePress(x2, y2);
-
-			//scn->UpdatePosition((int)x2, (int)y2);
+			scn->intersection(Eigen::Vector3f(x2 / 600 - 1, 1 - y2 / 400, 0));
 			if (rndr->Picking((int)x2, (int)y2))
 			{
 				rndr->UpdatePosition(x2, y2);
@@ -59,6 +58,11 @@
 			{
 				//rndr->MouseProccessing(GLFW_MOUSE_BUTTON_LEFT);
 				scn->WhenTranslate();
+			}
+			else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
+			{
+				//rndr->MouseProccessing(GLFW_MOUSE_BUTTON_LEFT);
+				scn->TransformObject();
 			}
 		}
 	}

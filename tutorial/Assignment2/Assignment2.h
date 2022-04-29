@@ -19,9 +19,14 @@ public:
 	void WhenRotate();
 	void WhenTranslate();
 	void ComputeAngleFromEye();
+	void TransformObject();
 	void RotateScene(int unitsUp, int unitsRight);
 	void Animate() override;
 	void ScaleAllShapes(float amt, int viewportIndx);
+
+	float intersectionWithObject(Eigen::Vector4f objectPos, Eigen::Vector3f sourcePoint, Eigen::Vector3f dir);
+
+	void intersection(Eigen::Vector3f cursorPoint);
 	
 	~Assignment2(void);
 	void ComputeEyeFromAngle();
@@ -36,6 +41,7 @@ private:
 	float radius;
 	float scale;
 	float xOld, yOld, xRel, yRel;
+	int pickedObjectIndex;
 };
 
 

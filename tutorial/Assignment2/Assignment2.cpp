@@ -156,6 +156,56 @@ void Assignment2::ScaleAllShapes(float amt,int viewportIndx)
 	}
 }
 
+float Assignment2::intersectionWithObject(Eigen::Vector4f objectPos, Eigen::Vector3f sourcePoint, Eigen::Vector3f dir) {
+	float dist = -1.0;
+	if (objectPos(3) <= 0) {
+		//plane
+		float d = objectPos(3);
+		Eigen::Vector3f perpendicular = objectPos.head(3);
+		dist = -(perpendicular.dot(sourcePoint) + d) / perpendicular.dot(dir);
+	}
+	else {
+		//sphere
+		Eigen::Vector3f o = objectPos.head(3);
+		float r = objectPos(3);
+		Eigen::Vector3f L = o - sourcePoint;
+		float tm = L.dot(dir);
+		float dSquared = (L.norm() * L.norm()) - (tm * tm);
+		if (dSquared <= r * r) {
+			float th = sqrt(r * r - dSquared);
+			float t1 = tm - th, t2 = tm + th;
+			if (t1 > 0.001) {
+				dist = t1;
+			}
+			else if (t2 > 0.001) {
+				dist = t2;
+			}
+			else {
+				dist = -1.0;
+			}
+		}
+	}
+	return dist;
+}
+void Assignment2::intersection(Eigen::Vector3f cursorPoint) {
+	Eigen::Vector3f v = (cursorPoint - Eigen::Vector3f(0, 0, sceneData.eye(2))).normalized();
+	// burn with fire
+	cursorPoint = cursorPoint + Eigen::Vector3f(sceneData.eye[0], sceneData.eye[1], sceneData.eye[3]);
+	int minIndex = -1;
+	float minDist = -1;
+	for (int i = 0; i < sceneData.sizes[0]; i++) {
+		Eigen::Vector4f curObject = sceneData.objects[i];
+		float dist = intersectionWithObject(curObject, cursorPoint, v);
+		if (true
+			&& dist >= 0.001
+			&& (minIndex == -1 || dist < minDist)
+			) {
+			minIndex = i;
+			minDist = dist;
+		}
+	}
+	pickedObjectIndex = minIndex;
+}
 Assignment2::~Assignment2(void)
 {
 
@@ -183,4 +233,20 @@ void Assignment2::ComputeAngleFromEye() {
 	radius = sqrt(eye.x() * eye.x() + eye.y() * eye.y() + eye.z() * eye.z());
 	leftRightAngle = eye.z() != 0 ? atan(eye.x() / eye.z()) : 0.0;
 	upDownAngle = acos(eye.y() / radius);
+}
+
+void Assignment2::TransformObject() {
+	if (pickedObjectIndex != -1) {
+		if (sceneData.objects[pickedObjectIndex](3) > 0) {
+			//sphere
+			float movCoeff = 2.0f;
+			float dx = -xRel / movCoeff;
+			float dy = yRel / movCoeff;
+			sceneData.objects[pickedObjectIndex](0) += TRANSLATION_SENSITIVITY * dx * radius;
+			sceneData.objects[pickedObjectIndex](1) += TRANSLATION_SENSITIVITY * dy * radius;
+		}
+		else {
+			//plane
+		}
+	}
 }
