@@ -8,7 +8,10 @@ uniform vec4[10] lightsDirection;
 uniform vec4[10] lightsIntensity;
 uniform vec4[10] lightsPosition;
 uniform ivec4 sizes;
-
+uniform float upDownAngle;
+uniform float leftRightAngle;
+uniform float radius;
+uniform float scale;
 in vec3 position0;
 in vec3 normal0;
 
@@ -260,6 +263,13 @@ bool isShadowing(Intersection hit, Intersection blocking, Light light) {
     // return isValid && (!isSameObject || (isObjectASphere && isSamePoint));
 }
 
+float powm(float base, float raiseto){
+    float res = 1;
+    for(int i = 0; i<raiseto;i++){
+        res = res * base;
+    }
+    return res;
+}
 vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
     Object object = getObject(intersection.objectIndex);
 
@@ -318,7 +328,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
         vec3 normal = intersection.pointNormal;
         vec3 diffuse = diffuseFactors * object.color * intensity * cosIncoming;
         vec3 refl = normalize(reflect(-vPointToLight, normal));
-        vec3 specular = specularFactors * intensity * pow(dot(-vRay, refl), object.shinniness);
+        vec3 specular = specularFactors * intensity * powm(dot(-vRay, refl), object.shinniness);
 
         if (object.kind == OBJ_KIND_PLANE) {
             diffuse = abs(diffuse);
@@ -379,8 +389,12 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
 
 void main()
 {
-    vec3 vRay = normalize(position0.xyz - eye.xyz);
-    StraightLine ray = StraightLine(eye.xyz, vRay);
+    vec3 transformedEye = vec3(radius * sin(upDownAngle) * sin(leftRightAngle),
+                                radius * cos(upDownAngle),
+                                radius * sin(upDownAngle) * cos(leftRightAngle));
+    //transformedEye = eye.xyz;
+    vec3 vRay = normalize(position0.xyz - transformedEye);
+    StraightLine ray = StraightLine(transformedEye, vRay);
     Intersection intersection;
     bounceLightRay(ray, intersection);
 
@@ -389,4 +403,7 @@ void main()
         color = calculateColor_noTracing(ray.v, intersection);
     }
     outColor = vec4(color, 1);
+    if(abs(position0.z) <= 0.01 && abs(position0.y) <= 0.01 && abs(position0.x) <= 0.01){
+        outColor = vec4(1);
+    }
 }

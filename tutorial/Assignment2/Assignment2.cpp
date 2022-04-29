@@ -25,15 +25,23 @@ void Assignment2::Init()
 {		
 	SceneParser("scene.txt", &sceneData);
 	AddShader("shaders/ourRayTracingShader");
-    AddShader("shaders/rayTracingShader-roee");
+    //AddShader("shaders/rayTracingShader-roee");
 	AddShape(Plane, -1, TRIANGLES, 0);
-    AddShape(Plane, -1, TRIANGLES, 1);
+    //AddShape(Plane, -1, TRIANGLES, 1);
 
 	SetShapeShader(0, 0);
-    SetShapeShader(1, 1);
+    //SetShapeShader(1, 1);
     pickedShape = 0;
 	SetShapeStatic(0);
-    SetShapeStatic(1);
+    //SetShapeStatic(1);
+	upDownAngle = 0.0;
+	leftRightAngle = 0.0;
+	Eigen::Vector4f eye = sceneData.eye;
+	radius = sqrt(eye.x() * eye.x() + eye.y() * eye.y() + eye.z() * eye.z());
+	leftRightAngle = atan(eye.x() / eye.z());
+	upDownAngle = acos(eye.y() / radius);
+	scale = 1.0;
+	PrintParams();
 }
 
 void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx)
@@ -60,6 +68,11 @@ void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	s->SetUniform4fv("lightsIntensity", sceneData.intensities.data(), sceneData.intensities.size());
 	s->SetUniform4fv("lightsPosition", sceneData.lights.data(), sceneData.lights.size());
 	s->SetUniform4i("sizes", sceneData.sizes(0), sceneData.sizes(1), sceneData.sizes(2), sceneData.sizes(3));
+	s->SetUniform1f("upDownAngle", upDownAngle);
+	s->SetUniform1f("leftRightAngle", leftRightAngle);
+	s->SetUniform1f("radius", radius);
+	s->SetUniform1f("scale", scale);
+
 	s->SetUniformMat4f("Proj", Proj);
 	s->SetUniformMat4f("View", View);
 	s->SetUniformMat4f("Model", Model);
@@ -73,6 +86,24 @@ void Assignment2::WhenRotate()
 
 void Assignment2::WhenTranslate()
 {
+}
+
+void Assignment2::RotateScene(int unitsUp, int unitsRight) {
+	upDownAngle += unitsUp * ANGLE_STEP;
+	leftRightAngle += unitsRight * ANGLE_STEP;
+	if (upDownAngle <= 0) {
+		upDownAngle += 2*EIGEN_PI;
+	}
+	else if (upDownAngle >= 2*EIGEN_PI) {
+		upDownAngle -= 2*EIGEN_PI;
+	}
+	if (leftRightAngle <= 0) {
+		leftRightAngle += 2*EIGEN_PI;
+	}
+	else if (leftRightAngle >= 2*EIGEN_PI) {
+		leftRightAngle -= 2*EIGEN_PI;
+	}
+	PrintParams();
 }
 
 void Assignment2::Animate() {
@@ -98,3 +129,16 @@ Assignment2::~Assignment2(void)
 
 }
 
+void Assignment2::PrintParams() {
+	float x = radius * sin(upDownAngle) * sin(leftRightAngle);
+	float y = radius * cos(upDownAngle);
+	float z = radius * sin(upDownAngle) * cos(leftRightAngle);
+	float dis = sqrt(x * x + y * y + z * z);
+	std::cout << "x: " << x << ", ";
+	std::cout << "y: " << y << ", ";
+	std::cout << "z: " << z << ", ";
+	std::cout << "dis: " << dis << ", ";
+	std::cout << "radius: " << radius << ", ";
+	std::cout << "updown: " << upDownAngle << ", ";
+	std::cout << "leftright: " << leftRightAngle << std::endl;
+}
