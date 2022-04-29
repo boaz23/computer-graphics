@@ -28,6 +28,10 @@ void Assignment2::Init()
     //AddShader("shaders/rayTracingShader-roee");
 	AddShape(Plane, -1, TRIANGLES, 0);
     //AddShape(Plane, -1, TRIANGLES, 1);
+	xOld = 0;
+	yOld = 0;
+	xRel = 0;
+	yRel = 0;
 
 	SetShapeShader(0, 0);
     //SetShapeShader(1, 1);
@@ -36,12 +40,8 @@ void Assignment2::Init()
     //SetShapeStatic(1);
 	upDownAngle = 0.0;
 	leftRightAngle = 0.0;
-	Eigen::Vector4f eye = sceneData.eye;
-	radius = sqrt(eye.x() * eye.x() + eye.y() * eye.y() + eye.z() * eye.z());
-	leftRightAngle = atan(eye.x() / eye.z());
-	upDownAngle = acos(eye.y() / radius);
 	scale = 1.0;
-	PrintParams();
+	ComputeAngleFromEye();
 }
 
 void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx)
@@ -68,10 +68,6 @@ void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	s->SetUniform4fv("lightsIntensity", sceneData.intensities.data(), sceneData.intensities.size());
 	s->SetUniform4fv("lightsPosition", sceneData.lights.data(), sceneData.lights.size());
 	s->SetUniform4i("sizes", sceneData.sizes(0), sceneData.sizes(1), sceneData.sizes(2), sceneData.sizes(3));
-	s->SetUniform1f("upDownAngle", upDownAngle);
-	s->SetUniform1f("leftRightAngle", leftRightAngle);
-	s->SetUniform1f("radius", radius);
-	s->SetUniform1f("scale", scale);
 
 	s->SetUniformMat4f("Proj", Proj);
 	s->SetUniformMat4f("View", View);
@@ -84,9 +80,45 @@ void Assignment2::WhenRotate()
 {
 }
 
+float Assignment2::UpdatePosition(float xpos, float ypos)
+{
+	xRel = xOld - xpos;
+	yRel = yOld - ypos;
+	xOld = xpos;
+	yOld = ypos;
+	return yRel;
+}
+
 void Assignment2::WhenTranslate()
 {
+	float movCoeff = 2.0f;
+	float dx = -xRel / movCoeff;
+	float dy = yRel / movCoeff;
+	TranslateX(dx);
+	TranslateY(-dy);
+	//std::cout << sceneData.eye << std::endl;
+	ComputeAngleFromEye();
 }
+
+void Assignment2::TranslateX(float dx)
+{
+	sceneData.eye.x() += TRANSLATION_SENSITIVITY * dx * radius;
+}
+
+void Assignment2::TranslateY(float dy)
+{
+	sceneData.eye.y() += TRANSLATION_SENSITIVITY * dy * radius;
+}
+
+void Assignment2::ChangeZoomBy(float dz)
+{
+	float nextZoom = radius / (1 + SCALE_SENSITIVITY * dz);
+	if (nextZoom >= 0) {
+		radius = nextZoom;
+		ComputeEyeFromAngle();
+	}
+}
+
 
 void Assignment2::RotateScene(int unitsUp, int unitsRight) {
 	upDownAngle += unitsUp * ANGLE_STEP;
@@ -103,7 +135,7 @@ void Assignment2::RotateScene(int unitsUp, int unitsRight) {
 	else if (leftRightAngle >= 2*EIGEN_PI) {
 		leftRightAngle -= 2*EIGEN_PI;
 	}
-	PrintParams();
+	ComputeEyeFromAngle();
 }
 
 void Assignment2::Animate() {
@@ -129,16 +161,26 @@ Assignment2::~Assignment2(void)
 
 }
 
-void Assignment2::PrintParams() {
+void Assignment2::ComputeEyeFromAngle() {
 	float x = radius * sin(upDownAngle) * sin(leftRightAngle);
 	float y = radius * cos(upDownAngle);
 	float z = radius * sin(upDownAngle) * cos(leftRightAngle);
+	sceneData.eye.x() = x;
+	sceneData.eye.y() = y;
+	sceneData.eye.z() = z;
 	float dis = sqrt(x * x + y * y + z * z);
-	std::cout << "x: " << x << ", ";
-	std::cout << "y: " << y << ", ";
-	std::cout << "z: " << z << ", ";
-	std::cout << "dis: " << dis << ", ";
-	std::cout << "radius: " << radius << ", ";
-	std::cout << "updown: " << upDownAngle << ", ";
-	std::cout << "leftright: " << leftRightAngle << std::endl;
+	//std::cout << "x: " << x << ", ";
+	//std::cout << "y: " << y << ", ";
+	//std::cout << "z: " << z << ", ";
+	//std::cout << "dis: " << dis << ", ";
+	//std::cout << "radius: " << radius << ", ";
+	//std::cout << "updown: " << upDownAngle << ", ";
+	//std::cout << "leftright: " << leftRightAngle << std::endl;
+}
+
+void Assignment2::ComputeAngleFromEye() {
+	Eigen::Vector4f eye = sceneData.eye;
+	radius = sqrt(eye.x() * eye.x() + eye.y() * eye.y() + eye.z() * eye.z());
+	leftRightAngle = eye.z() != 0 ? atan(eye.x() / eye.z()) : 0.0;
+	upDownAngle = acos(eye.y() / radius);
 }

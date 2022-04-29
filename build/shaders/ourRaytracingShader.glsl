@@ -8,10 +8,6 @@ uniform vec4[10] lightsDirection;
 uniform vec4[10] lightsIntensity;
 uniform vec4[10] lightsPosition;
 uniform ivec4 sizes;
-uniform float upDownAngle;
-uniform float leftRightAngle;
-uniform float radius;
-uniform float scale;
 in vec3 position0;
 in vec3 normal0;
 
@@ -344,7 +340,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
 
 #define REFRACTION_INDEX_NORMAL 1
 #define REFRACTION_INDEX_SPHERE 1.5
-#define MAX_TRACING_COUNT 5
+#define MAX_TRACING_COUNT 0
 void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
     int i;
     float refractionIndex = REFRACTION_INDEX_NORMAL;
@@ -389,12 +385,10 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
 
 void main()
 {
-    vec3 transformedEye = vec3(radius * sin(upDownAngle) * sin(leftRightAngle),
-                                radius * cos(upDownAngle),
-                                radius * sin(upDownAngle) * cos(leftRightAngle));
-    //transformedEye = eye.xyz;
-    vec3 vRay = normalize(position0.xyz - transformedEye);
-    StraightLine ray = StraightLine(transformedEye, vRay);
+    vec3 eyeDiff = eye.xyw;
+    //tamir
+    vec3 vRay = normalize(position0.xyz + eyeDiff - eye.xyz);
+    StraightLine ray = StraightLine(position0 + eyeDiff, vRay);
     Intersection intersection;
     bounceLightRay(ray, intersection);
 
