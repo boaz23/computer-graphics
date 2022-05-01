@@ -68,7 +68,8 @@ void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	s->SetUniform4fv("lightsIntensity", sceneData.intensities.data(), sceneData.intensities.size());
 	s->SetUniform4fv("lightsPosition", sceneData.lights.data(), sceneData.lights.size());
 	s->SetUniform4i("sizes", sceneData.sizes(0), sceneData.sizes(1), sceneData.sizes(2), sceneData.sizes(3));
-
+	s->SetUniform1f("upDownAngle", upDownAngle);
+	s->SetUniform1f("leftRightAngle", leftRightAngle);
 	s->SetUniformMat4f("Proj", Proj);
 	s->SetUniformMat4f("View", View);
 	s->SetUniformMat4f("Model", Model);

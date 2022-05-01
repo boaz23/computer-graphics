@@ -8,7 +8,8 @@ uniform vec4[10] lightsDirection;
 uniform vec4[10] lightsIntensity;
 uniform vec4[10] lightsPosition;
 uniform ivec4 sizes;
-
+uniform float upDownAngle;
+uniform float leftRightAngle;
 in vec3 position0;
 in vec3 normal0;
 
@@ -381,8 +382,15 @@ void main()
 {
     vec3 eyeDiff = eye.xyw;
     //tamir
-    vec3 vRay = normalize(position0.xyz + eyeDiff - eye.xyz);
-    StraightLine ray = StraightLine(position0 + eyeDiff, vRay);
+//	float x = radius * sin(upDownAngle) * sin(leftRightAngle);
+//	float y = radius * cos(upDownAngle);
+//	float z = radius * sin(upDownAngle) * cos(leftRightAngle);
+    float positionLength = length(position0);
+    vec3 transformedScreen = vec3(positionLength*sin(upDownAngle)*sin(leftRightAngle),
+                                    positionLength*cos(upDownAngle),
+                                    positionLength*sin(upDownAngle)*cos(leftRightAngle)) + eyeDiff;
+    vec3 vRay = normalize(transformedScreen - eye.xyz);
+    StraightLine ray = StraightLine(transformedScreen, vRay);
     Intersection intersection;
     bounceLightRay(ray, intersection);
 
@@ -391,7 +399,7 @@ void main()
         color = calculateColor_noTracing(ray.v, intersection);
     }
     outColor = vec4(color, 1);
-    if(abs(position0.z) <= 0.01 && abs(position0.y) <= 0.01 && abs(position0.x) <= 0.01){
+    if(abs(transformedScreen.z) <= 0.01 && abs(transformedScreen.y) <= 0.01 && abs(transformedScreen.x) <= 0.01){
         outColor = vec4(1);
     }
 }
