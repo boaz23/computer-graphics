@@ -331,7 +331,8 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
         vec3 specular = specularFactors * intensity * powm(dot(-vRay, refl), object.shinniness);
         
         if (object.kind == OBJ_KIND_PLANE) {
-            diffuse = abs(diffuse);
+            // Does it really matter if the light hits the plane from the "opposite" direction.
+            diffuse *= sign(cosIncoming);
             // diffuse *= -1;
         }
         diffuse = clampColor(diffuse);
@@ -369,13 +370,14 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
                 //   * if we hit the same shpere we were before (but now from the inside), set to 1.
                 //   * otherwise, based on whether the object we hit is transparent or not.
                 // TODO: calculate the initial refraction (the very first) index based on the object we start in (if we do)
-                float nextRefractionIndex;
-                if (intersection.count == 2) {
-                    nextRefractionIndex = REFRACTION_INDEX_SPHERE;
-                }
-                else {
-                    nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
-                }
+//                float nextRefractionIndex;
+//                if (intersection.count == 2) {
+//                    nextRefractionIndex = REFRACTION_INDEX_SPHERE;
+//                }
+//                else {
+//                    nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
+//                }
+                float nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
                 float refractionRatio = refractionIndex / nextRefractionIndex;
                 vec3 vRay = normalize(refract(ray.v, sign(cosIncoming) * intersection.pointNormal, refractionRatio));
                 ray = StraightLine(intersection.point, vRay);
@@ -402,7 +404,7 @@ void main()
     vec3 vRay = normalize(position0.xyz + eyeDiff - eye.xyz);
     StraightLine ray = StraightLine(position0 + eyeDiff, vRay);
     Intersection intersection;
-    bounceLightRay(ray, intersection);
+   bounceLightRay(ray, intersection);
 
     vec3 color = vec3(0);
     if (intersection.objectIndex >= 0) {
