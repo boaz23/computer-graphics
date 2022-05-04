@@ -348,20 +348,27 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
 #define REFRACTION_INDEX_SPHERE 1.5
 #define MAX_TRACING_COUNT 5
 void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
-    int i;
+    int iRefraction = 0, iReflection = 0;
     float refractionIndex = REFRACTION_INDEX_NORMAL;
     intersection = findFirstIntersectingObject(ray, invalidIntersection, false, true);
-    for (i = 0; i < MAX_TRACING_COUNT; i++) {
+    while (true) {
         if (intersection.objectIndex < 0) {
             break;
         }
 
-        if ((getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_REFLECTIVE) != 0) {
+        if (
+            iReflection < MAX_TRACING_COUNT
+            && (getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_REFLECTIVE) != 0
+        ) {
             vec3 vRay = normalize(reflect(ray.v, intersection.pointNormal));
             ray = StraightLine(intersection.point, vRay);
             intersection = findFirstIntersectingObject(ray, intersection, false, true);
+            iReflection++;
         }
-        else if ((getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_TRANSPARENT) != 0) {
+        else if (
+            iRefraction < MAX_TRACING_COUNT
+            && (getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_TRANSPARENT) != 0
+        ) {
             vec4 object = objects[intersection.objectIndex];
             float cosIncoming = dot(-ray.v, intersection.pointNormal);
             // Refract only in case of a transparent sphere, but not if we are tanget to the radius
@@ -383,12 +390,11 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
                 ray = StraightLine(intersection.point, vRay);
                 refractionIndex = nextRefractionIndex;
                 intersection = findFirstIntersectingObject(ray, intersection, false, false);
+                iRefraction++;
             }
             else {
                 // This is a thin surface, so the light goes through it without changes.
-                // Therefore, this shouldn't count, so accomodate here for the increment that
-                // comes after this.
-                i--;
+                // Therefore, this shouldn't count.
             }
         }
         else {
@@ -399,12 +405,10 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
 
 void main()
 {
-    vec3 eyeDiff = eye.xyw;
-    //tamir
-    vec3 vRay = normalize(position0.xyz + eyeDiff - eye.xyz);
-    StraightLine ray = StraightLine(position0 + eyeDiff, vRay);
+    vec3 vRay = normalize(position0.xyz - eye.xyz);
+    StraightLine ray = StraightLine(position0.xyz, vRay);
     Intersection intersection;
-   bounceLightRay(ray, intersection);
+    bounceLightRay(ray, intersection);
 
     vec3 color = vec3(0);
     if (intersection.objectIndex >= 0) {
