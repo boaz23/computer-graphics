@@ -2,7 +2,6 @@
 
 uniform vec4 eye;
 uniform vec4 cameraCenter;
-uniform vec3 translation;
 uniform vec4 ambient;
 uniform vec4[20] objects;
 uniform vec4[20] objColors;
@@ -10,8 +9,6 @@ uniform vec4[10] lightsDirection;
 uniform vec4[10] lightsIntensity;
 uniform vec4[10] lightsPosition;
 uniform ivec4 sizes;
-uniform float upDownAngle;
-uniform float leftRightAngle;
 in vec3 position0;
 in vec3 normal0;
 

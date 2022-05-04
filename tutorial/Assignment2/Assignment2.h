@@ -13,7 +13,6 @@ class Assignment2 : public igl::opengl::glfw::Viewer
 public:
 	
 	Assignment2();
-//	Assignment2(float angle,float relationWH,float near, float far);
 	void Init();
 	void Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx);
 	void WhenRotate();
@@ -21,8 +20,6 @@ public:
 	void ComputeAngleFromEye();
 	void TransformObject();
 	void ComputeLookAtMatrix();
-	Eigen::Matrix4f GetLookAtMatrix();
-	Eigen::Matrix4f GetProjectionMatrix();
 	void RotateScene(int unitsUp, int unitsRight);
 	void Animate() override;
 	void ScaleAllShapes(float amt, int viewportIndx);
@@ -32,11 +29,8 @@ public:
 	void intersection(Eigen::Vector3f cursorPoint);
 	
 	~Assignment2(void);
-	Eigen::Vector4f ComputeEyePosition();
 	void ComputeEyeFromAngle();
 	float UpdatePosition(float xpos, float ypos);
-	void TranslateX(float dx);
-	void TranslateY(float dy);
 	void ChangeZoomBy(float d);
 private:
 	SceneData sceneData;

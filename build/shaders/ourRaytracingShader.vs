@@ -14,7 +14,6 @@ uniform mat4 Proj;
 uniform mat4 View;
 uniform mat4 Model;
 uniform mat4 LookAt;
-uniform mat4 MyProj;
 
 void main()
 {	
