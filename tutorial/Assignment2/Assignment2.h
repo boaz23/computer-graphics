@@ -20,6 +20,9 @@ public:
 	void WhenTranslate();
 	void ComputeAngleFromEye();
 	void TransformObject();
+	void ComputeLookAtMatrix();
+	Eigen::Matrix4f GetLookAtMatrix();
+	Eigen::Matrix4f GetProjectionMatrix();
 	void RotateScene(int unitsUp, int unitsRight);
 	void Animate() override;
 	void ScaleAllShapes(float amt, int viewportIndx);
@@ -29,6 +32,7 @@ public:
 	void intersection(Eigen::Vector3f cursorPoint);
 	
 	~Assignment2(void);
+	Eigen::Vector4f ComputeEyePosition();
 	void ComputeEyeFromAngle();
 	float UpdatePosition(float xpos, float ypos);
 	void TranslateX(float dx);
@@ -36,10 +40,12 @@ public:
 	void ChangeZoomBy(float d);
 private:
 	SceneData sceneData;
+	Eigen::Matrix4f lookAtMatrix;
+	Eigen::Vector4f cameraCenter;
+	float isUp;
 	float upDownAngle;
 	float leftRightAngle;
 	float radius;
-	float scale;
 	float xOld, yOld, xRel, yRel;
 	int pickedObjectIndex;
 };
