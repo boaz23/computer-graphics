@@ -17,7 +17,7 @@ in vec3 normal0;
 
 layout (location = 0) out vec4 outColor;
 
-#define EPSILON 1e-10
+#define EPSILON 1e-9
 
 #define clampColor(color) (clamp((color), 0, 1))
 
@@ -117,15 +117,21 @@ struct Intersection {
     float distance;
     vec3 point;
     vec3 pointNormal;
+
+    // for sphere
+    int count;
+    int absoluteIndex;
 };
 
-Intersection invalidIntersection = Intersection(-1, -1, vec3(-1), vec3(-1));
+Intersection invalidIntersection = Intersection(-1, -1, vec3(-1), vec3(-1), -1, -1);
 #define isIntersectionValid(i) ((i).objectIndex >= 0)
 
-Intersection findIntersection(vec4 object, StraightLine ray) {
+Intersection findIntersection(vec4 object, StraightLine ray, int skipIndex) {
     float dist = -1.0;
     vec3 normal = vec3(-1);
     vec3 intersectionPoint = vec3(-1);
+    int count = 0;
+    int absoluteIndex = -1;
     if (isObjectOfKind(object, OBJ_KIND_PLANE)) {
         //plane
         float d = object.w;
@@ -133,6 +139,8 @@ Intersection findIntersection(vec4 object, StraightLine ray) {
         normal = normalize(perpendicular);
         dist = -(dot(perpendicular, ray.p0) + d) / dot(perpendicular, ray.v);
         intersectionPoint = pointOnStraightLine(ray, dist);
+        count = int(dist > 0 && !isinf(dist));
+        absoluteIndex = max(count - (skipIndex + 1) - 1, -1);
     }
     else {
         //sphere
@@ -144,53 +152,71 @@ Intersection findIntersection(vec4 object, StraightLine ray) {
         if (dSquared <= r*r) {
             float th = sqrt(r*r - dSquared);
             float t1 = tm - th, t2 = tm + th;
-            if (!isZeroP(t1)) {
+            if (skipIndex != 0 && !isZeroP(t1)) {
                 dist = t1;
+                count = 2;
+                absoluteIndex = 0;
             }
-            else if (!isZeroP(t2)) {
+            else if (skipIndex != 1 && !isZeroP(t2)) {
                 dist = t2;
+                count = 1;
+                absoluteIndex = 1;
             }
             else {
                 dist = -1.0;
+                count = 0;
+                absoluteIndex = -1;
             }
             intersectionPoint = pointOnStraightLine(ray, dist);
             normal = normalize(intersectionPoint - o);
         }
     }
-    return Intersection(-1, dist, intersectionPoint, normal);
+    return Intersection(-1, dist, intersectionPoint, normal, count, absoluteIndex);
 }
 
-bool shouldGoThroughBlocking(Intersection hit, Intersection blocking, bool isForShadowing) {
+#define INTERSECTION_KIND_NONE 0
+#define INTERSECTION_KIND_SHADOW 1
+#define INTERSECTION_KIND_REFLECTION 2
+#define INTERSECTION_KIND_REFRACTION 3
+
+bool shouldGoThroughBlocking(Intersection hit, Intersection blocking, int kind) {
     vec4 blockingObject = objects[blocking.objectIndex];
 
+    bool sameIndex = (hit.objectIndex == blocking.objectIndex && hit.absoluteIndex == blocking.absoluteIndex);
+    bool skipObject = kind != INTERSECTION_KIND_REFRACTION;
     return false
-        || blocking.objectIndex == hit.objectIndex
+        || (kind == INTERSECTION_KIND_REFRACTION && sameIndex)
+//        || sameIndex
+        || (skipObject && blocking.objectIndex == hit.objectIndex)
         // Skip transparent planes. The light is considered to go through them without change
         || (isTransparentPlane(blocking.objectIndex))
-        || (isForShadowing && isObjectOfKind(blockingObject, OBJ_KIND_PLANE));
+        || (kind == INTERSECTION_KIND_SHADOW && isObjectOfKind(blockingObject, OBJ_KIND_PLANE));
 }
 
 bool isNewMinimumIntersection(Intersection intersection, Intersection minIntersection) {
     return true
+        && !isinf(intersection.distance)
         && !isZeroP(intersection.distance)
         && (!isIntersectionValid(minIntersection) || intersection.distance < minIntersection.distance);
 }
 
-Intersection findFirstIntersectingObject(StraightLine ray, Intersection hit, bool isForShadowing) {
+Intersection findFirstIntersectingObject(StraightLine ray, Intersection hit, int kind) {
     Intersection minIntersection = invalidIntersection;
     for(int i = 0; i < sizes[0]; i++) {
         vec4 curObject = objects[i];
 
-        Intersection intersection = findIntersection(curObject, ray);
+//        int skipIndex = -1;
+//        int skipIndex = hit.absoluteIndex;
+          int skipIndex = kind == INTERSECTION_KIND_REFRACTION ? hit.absoluteIndex : -1;
+//        int skipIndex = skipObject ? (hit.absoluteIndex >= 0 ? (1 - hit.absoluteIndex) : -1) : -1;
+//        int skipIndex = max((-1 + 2*int(skipObject)) * hit.absoluteIndex, -1); // equivalent to `skipObject ? -1 : hit.absoluteIndex`
+        Intersection intersection = findIntersection(curObject, ray, skipIndex);
         intersection.objectIndex = i;
         if (
-            !shouldGoThroughBlocking(hit, intersection, isForShadowing) &&
+            !shouldGoThroughBlocking(hit, intersection, kind) &&
             isNewMinimumIntersection(intersection, minIntersection)
         ) {
             minIntersection = intersection;
-            if (isForShadowing) {
-                break;
-            }
         }
     }
 
@@ -288,7 +314,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
             blockingIntersection = findFirstIntersectingObject(
                 StraightLine(intersection.point, vPointToLight),
                 intersection,
-                true
+                INTERSECTION_KIND_SHADOW
             );
         }
         else {
@@ -307,7 +333,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
                 blockingIntersection = findFirstIntersectingObject(
                     StraightLine(light.position, -vPointToLight),
                     intersection,
-                    true
+                    INTERSECTION_KIND_SHADOW
                 );
             }
         }
@@ -321,9 +347,10 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
         vec3 diffuse = diffuseFactors * object.color * intensity * cosIncoming;
         vec3 refl = normalize(reflect(-vPointToLight, normal));
         vec3 specular = specularFactors * intensity * powm(dot(-vRay, refl), object.shinniness);
-
+        
         if (object.kind == OBJ_KIND_PLANE) {
-            diffuse = abs(diffuse);
+            // Does it really matter if the light hits the plane from the "opposite" direction.
+            diffuse *= sign(cosIncoming);
             // diffuse *= -1;
         }
         diffuse = clampColor(diffuse);
@@ -339,44 +366,68 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
 #define REFRACTION_INDEX_SPHERE 1.5
 #define MAX_TRACING_COUNT 0
 void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
-    int i;
+    int iRefraction = 0, iReflection = 0;
     float refractionIndex = REFRACTION_INDEX_NORMAL;
-    intersection = findFirstIntersectingObject(ray, invalidIntersection, false);
-    for (i = 0; i < MAX_TRACING_COUNT; i++) {
+    intersection = findFirstIntersectingObject(ray, invalidIntersection, INTERSECTION_KIND_NONE);
+     Intersection prevRefractionIntersection = invalidIntersection;
+    int refractionCount = 0;
+    while (true) {
         if (intersection.objectIndex < 0) {
             break;
         }
-        
-        if ((getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_REFLECTIVE) != 0) {
+
+        if (
+            iReflection < MAX_TRACING_COUNT
+            && (getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_REFLECTIVE) != 0
+        ) {
             vec3 vRay = normalize(reflect(ray.v, intersection.pointNormal));
             ray = StraightLine(intersection.point, vRay);
+            intersection = findFirstIntersectingObject(ray, intersection, INTERSECTION_KIND_REFLECTION);
+            iReflection++;
         }
-        else if ((getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_TRANSPARENT) != 0) {
+        else if (
+            iRefraction < MAX_TRACING_COUNT
+            && (getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_TRANSPARENT) != 0
+        ) {
             vec4 object = objects[intersection.objectIndex];
+            float cosIncoming = dot(-ray.v, intersection.pointNormal);
             // Refract only in case of a transparent sphere, but not if we are tanget to the radius
-            if (isObjectOfKind(object, OBJ_KIND_SPHERE) && !isZero(dot(ray.v, intersection.pointNormal))) {
+            if (isObjectOfKind(object, OBJ_KIND_SPHERE) && !isZero(cosIncoming)) {
                 // TODO: calculate the next refraction index based on the object hit:
                 //   * if we hit the same shpere we were before (but now from the inside), set to 1.
                 //   * otherwise, based on whether the object we hit is transparent or not.
                 // TODO: calculate the initial refraction (the very first) index based on the object we start in (if we do)
-                float nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
+                float nextRefractionIndex;
+                if (intersection.count == 2) {
+                    nextRefractionIndex = REFRACTION_INDEX_SPHERE;
+                    refractionCount++;
+                }
+                else {
+                    refractionCount--;
+                    if (refractionCount == 0) {
+                        nextRefractionIndex = REFRACTION_INDEX_NORMAL;
+                    }
+                    else {
+                        nextRefractionIndex = REFRACTION_INDEX_SPHERE;
+                    }
+                }
+                // float nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
                 float refractionRatio = refractionIndex / nextRefractionIndex;
-                vec3 vRay = normalize(refract(ray.v, intersection.pointNormal, refractionRatio));
+                vec3 vRay = normalize(refract(ray.v, sign(cosIncoming) * intersection.pointNormal, refractionRatio));
                 ray = StraightLine(intersection.point, vRay);
                 refractionIndex = nextRefractionIndex;
+                // prevRefractionIntersection = intersection;
+                intersection = findFirstIntersectingObject(ray, intersection, INTERSECTION_KIND_REFRACTION);
+                iRefraction++;
             }
             else {
                 // This is a thin surface, so the light goes through it without changes.
-                // Therefore, this shouldn't count, so accomodate here for the increment that
-                // comes after this.
-                i--;
+                // Therefore, this shouldn't count.
             }
         }
         else {
             break;
         }
-
-        intersection = findFirstIntersectingObject(ray, intersection, false);
     }
 }
 
