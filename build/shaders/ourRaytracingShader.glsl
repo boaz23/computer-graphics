@@ -171,17 +171,23 @@ Intersection findIntersection(vec4 object, StraightLine ray, int skipIndex) {
     return Intersection(-1, dist, intersectionPoint, normal, count, absoluteIndex);
 }
 
-bool shouldGoThroughBlocking(Intersection hit, Intersection blocking, bool forShadowing, bool forRefraction, bool skipObject) {
+#define INTERSECTION_KIND_NONE 0
+#define INTERSECTION_KIND_SHADOW 1
+#define INTERSECTION_KIND_REFLECTION 2
+#define INTERSECTION_KIND_REFRACTION 3
+
+bool shouldGoThroughBlocking(Intersection hit, Intersection blocking, int kind) {
     vec4 blockingObject = objects[blocking.objectIndex];
 
     bool sameIndex = (hit.objectIndex == blocking.objectIndex && hit.absoluteIndex == blocking.absoluteIndex);
+    bool skipObject = kind != INTERSECTION_KIND_REFRACTION;
     return false
-        || (forRefraction && sameIndex)
+        || (kind == INTERSECTION_KIND_REFRACTION && sameIndex)
 //        || sameIndex
         || (skipObject && blocking.objectIndex == hit.objectIndex)
         // Skip transparent planes. The light is considered to go through them without change
         || (isTransparentPlane(blocking.objectIndex))
-        || (forShadowing && isObjectOfKind(blockingObject, OBJ_KIND_PLANE));
+        || (kind == INTERSECTION_KIND_SHADOW && isObjectOfKind(blockingObject, OBJ_KIND_PLANE));
 }
 
 bool isNewMinimumIntersection(Intersection intersection, Intersection minIntersection) {
@@ -191,7 +197,7 @@ bool isNewMinimumIntersection(Intersection intersection, Intersection minInterse
         && (!isIntersectionValid(minIntersection) || intersection.distance < minIntersection.distance);
 }
 
-Intersection findFirstIntersectingObject(StraightLine ray, Intersection hit, bool forShadowing, bool forRefraction, bool skipObject) {
+Intersection findFirstIntersectingObject(StraightLine ray, Intersection hit, int kind) {
     Intersection minIntersection = invalidIntersection;
     for(int i = 0; i < sizes[0]; i++) {
         vec4 curObject = objects[i];
@@ -203,7 +209,7 @@ Intersection findFirstIntersectingObject(StraightLine ray, Intersection hit, boo
         Intersection intersection = findIntersection(curObject, ray, skipIndex);
         intersection.objectIndex = i;
         if (
-            !shouldGoThroughBlocking(hit, intersection, forShadowing, forRefraction, skipObject) &&
+            !shouldGoThroughBlocking(hit, intersection, kind) &&
             isNewMinimumIntersection(intersection, minIntersection)
         ) {
             minIntersection = intersection;
@@ -304,7 +310,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
             blockingIntersection = findFirstIntersectingObject(
                 StraightLine(intersection.point, vPointToLight),
                 intersection,
-                true, false, true
+                INTERSECTION_KIND_SHADOW
             );
         }
         else {
@@ -323,7 +329,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
                 blockingIntersection = findFirstIntersectingObject(
                     StraightLine(light.position, -vPointToLight),
                     intersection,
-                    true, false, true
+                    INTERSECTION_KIND_SHADOW
                 );
             }
         }
@@ -358,7 +364,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
 void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
     int iRefraction = 0, iReflection = 0;
     float refractionIndex = REFRACTION_INDEX_NORMAL;
-    intersection = findFirstIntersectingObject(ray, invalidIntersection, false, false, true);
+    intersection = findFirstIntersectingObject(ray, invalidIntersection, INTERSECTION_KIND_NONE);
     while (true) {
         if (intersection.objectIndex < 0) {
             break;
@@ -370,7 +376,7 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
         ) {
             vec3 vRay = normalize(reflect(ray.v, intersection.pointNormal));
             ray = StraightLine(intersection.point, vRay);
-            intersection = findFirstIntersectingObject(ray, intersection, false, false, true);
+            intersection = findFirstIntersectingObject(ray, intersection, INTERSECTION_KIND_REFLECTION);
             iReflection++;
         }
         else if (
@@ -397,7 +403,7 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
                 vec3 vRay = normalize(refract(ray.v, sign(cosIncoming) * intersection.pointNormal, refractionRatio));
                 ray = StraightLine(intersection.point, vRay);
                 refractionIndex = nextRefractionIndex;
-                intersection = findFirstIntersectingObject(ray, intersection, false, true, false);
+                intersection = findFirstIntersectingObject(ray, intersection, INTERSECTION_KIND_REFRACTION);
                 iRefraction++;
             }
             else {
