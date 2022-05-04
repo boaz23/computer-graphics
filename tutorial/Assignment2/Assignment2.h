@@ -36,6 +36,7 @@ public:
 	void ChangeZoomBy(float d);
 private:
 	SceneData sceneData;
+	Eigen::Vector3f translation;
 	float upDownAngle;
 	float leftRightAngle;
 	float radius;

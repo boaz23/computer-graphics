@@ -32,11 +32,12 @@ void Assignment2::Init()
 	yRel = 0;
 
 	SetShapeShader(0, 0);
-    pickedShape = 0;
+	pickedShape = 0;
 	SetShapeStatic(0);
 	upDownAngle = 0.0;
 	leftRightAngle = 0.0;
 	scale = 1.0;
+	translation = Eigen::Vector3f(0, 0, 0);
 	ComputeAngleFromEye();
 }
 
@@ -56,7 +57,8 @@ void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	//uniform vec4[10] lightsPosition;
 	//uniform ivec4 sizes;
 	s->Bind();
-	s->SetUniform4f("eye", sceneData.eye(0), sceneData.eye(1), sceneData.eye(2), sceneData.eye(3));	
+	s->SetUniform4f("eye", sceneData.eye(0), sceneData.eye(1), sceneData.eye(2), sceneData.eye(3));
+	s->SetUniform4f("translation", translation(0), translation(1), translation(2), 0);
 	s->SetUniform4f("ambient", sceneData.ambient(0), sceneData.ambient(1), sceneData.ambient(2), sceneData.ambient(3));
 	s->SetUniform4fv("objects", sceneData.objects.data(), sceneData.objects.size());
 	s->SetUniform4fv("objColors", sceneData.colors.data(), sceneData.colors.size());
@@ -92,18 +94,19 @@ void Assignment2::WhenTranslate()
 	float dy = yRel / movCoeff;
 	TranslateX(dx);
 	TranslateY(-dy);
+	std::cout << "tranlation: " << translation.x() << ", " << translation.y() << "\n";
 	//std::cout << sceneData.eye << std::endl;
 	ComputeAngleFromEye();
 }
 
 void Assignment2::TranslateX(float dx)
 {
-	sceneData.eye.x() += TRANSLATION_SENSITIVITY * dx * radius;
+	translation.x() += TRANSLATION_SENSITIVITY * dx * radius;
 }
 
 void Assignment2::TranslateY(float dy)
 {
-	sceneData.eye.y() += TRANSLATION_SENSITIVITY * dy * radius;
+	translation.y() += TRANSLATION_SENSITIVITY * dy * radius;
 }
 
 void Assignment2::ChangeZoomBy(float dz)
@@ -238,8 +241,8 @@ void Assignment2::TransformObject() {
 			float movCoeff = 2.0f;
 			float dx = -xRel / movCoeff;
 			float dy = yRel / movCoeff;
-			sceneData.objects[pickedObjectIndex](0) += TRANSLATION_SENSITIVITY * dx * radius;
-			sceneData.objects[pickedObjectIndex](1) += TRANSLATION_SENSITIVITY * dy * radius;
+			sceneData.objects[pickedObjectIndex](0) += 0.1 * TRANSLATION_SENSITIVITY * dx * radius;
+			sceneData.objects[pickedObjectIndex](1) += 0.1 * TRANSLATION_SENSITIVITY * dy * radius;
 		}
 		else {
 			//plane

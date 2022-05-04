@@ -127,8 +127,8 @@ Intersection findIntersection(vec4 object, StraightLine ray, int skipIndex) {
     float dist = -1.0;
     vec3 normal = vec3(-1);
     vec3 intersectionPoint = vec3(-1);
-    int count;
-    int absoluteIndex;
+    int count = 0;
+    int absoluteIndex = -1;
     if (isObjectOfKind(object, OBJ_KIND_PLANE)) {
         //plane
         float d = object.w;
@@ -202,8 +202,9 @@ Intersection findFirstIntersectingObject(StraightLine ray, Intersection hit, int
     for(int i = 0; i < sizes[0]; i++) {
         vec4 curObject = objects[i];
 
-        int skipIndex = -1;
+//        int skipIndex = -1;
 //        int skipIndex = hit.absoluteIndex;
+          int skipIndex = kind == INTERSECTION_KIND_REFRACTION ? hit.absoluteIndex : -1;
 //        int skipIndex = skipObject ? (hit.absoluteIndex >= 0 ? (1 - hit.absoluteIndex) : -1) : -1;
 //        int skipIndex = max((-1 + 2*int(skipObject)) * hit.absoluteIndex, -1); // equivalent to `skipObject ? -1 : hit.absoluteIndex`
         Intersection intersection = findIntersection(curObject, ray, skipIndex);
@@ -365,6 +366,8 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
     int iRefraction = 0, iReflection = 0;
     float refractionIndex = REFRACTION_INDEX_NORMAL;
     intersection = findFirstIntersectingObject(ray, invalidIntersection, INTERSECTION_KIND_NONE);
+     Intersection prevRefractionIntersection = invalidIntersection;
+    int refractionCount = 0;
     while (true) {
         if (intersection.objectIndex < 0) {
             break;
@@ -391,18 +394,26 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
                 //   * if we hit the same shpere we were before (but now from the inside), set to 1.
                 //   * otherwise, based on whether the object we hit is transparent or not.
                 // TODO: calculate the initial refraction (the very first) index based on the object we start in (if we do)
-//                float nextRefractionIndex;
-//                if (intersection.count == 2) {
-//                    nextRefractionIndex = REFRACTION_INDEX_SPHERE;
-//                }
-//                else {
-//                    nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
-//                }
-                float nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
+                float nextRefractionIndex;
+                if (intersection.count == 2) {
+                    nextRefractionIndex = REFRACTION_INDEX_SPHERE;
+                    refractionCount++;
+                }
+                else {
+                    refractionCount--;
+                    if (refractionCount == 0) {
+                        nextRefractionIndex = REFRACTION_INDEX_NORMAL;
+                    }
+                    else {
+                        nextRefractionIndex = REFRACTION_INDEX_SPHERE;
+                    }
+                }
+                // float nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
                 float refractionRatio = refractionIndex / nextRefractionIndex;
                 vec3 vRay = normalize(refract(ray.v, sign(cosIncoming) * intersection.pointNormal, refractionRatio));
                 ray = StraightLine(intersection.point, vRay);
                 refractionIndex = nextRefractionIndex;
+                // prevRefractionIntersection = intersection;
                 intersection = findFirstIntersectingObject(ray, intersection, INTERSECTION_KIND_REFRACTION);
                 iRefraction++;
             }
