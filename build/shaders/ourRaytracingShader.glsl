@@ -14,7 +14,7 @@ in vec3 normal0;
 
 layout (location = 0) out vec4 outColor;
 
-#define EPSILON 5e-6
+#define EPSILON 1e-10
 
 #define clampColor(color) (clamp((color), 0, 1))
 
@@ -117,20 +117,18 @@ struct Intersection {
 
     // for sphere
     int count;
-    float t1;
-    float t2;
+    int absoluteIndex;
 };
 
-Intersection invalidIntersection = Intersection(-1, -1, vec3(-1), vec3(-1), -1, 0, 0);
+Intersection invalidIntersection = Intersection(-1, -1, vec3(-1), vec3(-1), -1, -1);
 #define isIntersectionValid(i) ((i).objectIndex >= 0)
 
-Intersection findIntersection(vec4 object, StraightLine ray) {
+Intersection findIntersection(vec4 object, StraightLine ray, int skipIndex) {
     float dist = -1.0;
     vec3 normal = vec3(-1);
     vec3 intersectionPoint = vec3(-1);
     int count;
-    float t1;
-    float t2;
+    int absoluteIndex;
     if (isObjectOfKind(object, OBJ_KIND_PLANE)) {
         //plane
         float d = object.w;
@@ -138,6 +136,8 @@ Intersection findIntersection(vec4 object, StraightLine ray) {
         normal = normalize(perpendicular);
         dist = -(dot(perpendicular, ray.p0) + d) / dot(perpendicular, ray.v);
         intersectionPoint = pointOnStraightLine(ray, dist);
+        count = int(dist > 0 && !isinf(dist));
+        absoluteIndex = max(count - (skipIndex + 1) - 1, -1);
     }
     else {
         //sphere
@@ -148,24 +148,27 @@ Intersection findIntersection(vec4 object, StraightLine ray) {
         float dSquared = (length(L)*length(L)) - (tm*tm);
         if (dSquared <= r*r) {
             float th = sqrt(r*r - dSquared);
-            t1 = tm - th, t2 = tm + th;
-            if (!isZeroP(t1)) {
+            float t1 = tm - th, t2 = tm + th;
+            if (skipIndex != 0 && !isZeroP(t1)) {
                 dist = t1;
                 count = 2;
+                absoluteIndex = 0;
             }
-            else if (!isZeroP(t2)) {
+            else if (skipIndex != 1 && !isZeroP(t2)) {
                 dist = t2;
                 count = 1;
+                absoluteIndex = 1;
             }
             else {
                 dist = -1.0;
                 count = 0;
+                absoluteIndex = -1;
             }
             intersectionPoint = pointOnStraightLine(ray, dist);
             normal = normalize(intersectionPoint - o);
         }
     }
-    return Intersection(-1, dist, intersectionPoint, normal, count, t1, t2);
+    return Intersection(-1, dist, intersectionPoint, normal, count, absoluteIndex);
 }
 
 bool shouldGoThroughBlocking(Intersection hit, Intersection blocking, bool isForShadowing, bool skipObject) {
@@ -180,6 +183,7 @@ bool shouldGoThroughBlocking(Intersection hit, Intersection blocking, bool isFor
 
 bool isNewMinimumIntersection(Intersection intersection, Intersection minIntersection) {
     return true
+        && !isinf(intersection.distance)
         && !isZeroP(intersection.distance)
         && (!isIntersectionValid(minIntersection) || intersection.distance < minIntersection.distance);
 }
@@ -189,7 +193,10 @@ Intersection findFirstIntersectingObject(StraightLine ray, Intersection hit, boo
     for(int i = 0; i < sizes[0]; i++) {
         vec4 curObject = objects[i];
 
-        Intersection intersection = findIntersection(curObject, ray);
+        int skipIndex = hit.absoluteIndex;
+//        int skipIndex = skipObject ? hit.absoluteIndex : -1;
+//        int skipIndex = max((-1 + 2*int(skipObject)) * hit.absoluteIndex, -1); // equivalent to `skipObject ? -1 : 1`
+        Intersection intersection = findIntersection(curObject, ray, skipIndex);
         intersection.objectIndex = i;
         if (
             !shouldGoThroughBlocking(hit, intersection, isForShadowing, skipObject) &&
