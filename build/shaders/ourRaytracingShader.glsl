@@ -361,7 +361,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
 
 #define REFRACTION_INDEX_NORMAL 1
 #define REFRACTION_INDEX_SPHERE 1.5
-#define MAX_TRACING_COUNT 0
+#define MAX_TRACING_COUNT 5
 void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
     int iRefraction = 0, iReflection = 0;
     float refractionIndex = REFRACTION_INDEX_NORMAL;

@@ -37,7 +37,7 @@ void Assignment2::Init()
 	radius = 1.0f;
 	upDownAngle = 0.0;
 	leftRightAngle = 0.0;
-	cameraCenter = Eigen::Vector4f(0, 0, 0, 0);
+	cameraCenter = Eigen::Vector4f(sceneData.eye(0), sceneData.eye(1), sceneData.eye(2) - 1, 0);
 	isUp = 1.0f;
 	ComputeAngleFromEye();
 	ComputeLookAtMatrix();
