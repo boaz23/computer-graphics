@@ -410,7 +410,7 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
                 }
                 // float nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
                 float refractionRatio = refractionIndex / nextRefractionIndex;
-                vec3 vRay = normalize(refract(ray.v, sign(cosIncoming) * intersection.pointNormal, refractionRatio));
+                vec3 vRay = normalize(refract(ray.v, -intersection.pointNormal, refractionRatio));
                 ray = StraightLine(intersection.point, vRay);
                 refractionIndex = nextRefractionIndex;
                 // prevRefractionIntersection = intersection;
