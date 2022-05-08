@@ -8,6 +8,7 @@ uniform vec4[20] objColors;
 uniform vec4[10] lightsDirection;
 uniform vec4[10] lightsIntensity;
 uniform vec4[10] lightsPosition;
+uniform float isUp;
 uniform ivec4 sizes;
 in vec3 position0;
 in vec3 normal0;
@@ -430,8 +431,12 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
 
 void main()
 {
-    vec3 vRay = normalize(position0 + cameraCenter.xyz - eye.xyz);
-    StraightLine ray = StraightLine(eye.xyz, vRay);
+    vec3 forward_direction = normalize(cameraCenter.xyz - eye.xyz);
+    vec3 right_direction = normalize(cross(forward_direction, vec3(0, isUp, 0)));
+    vec3 up_direction = normalize(cross(right_direction, forward_direction));
+    vec3 new_pos0 = eye.xyz + forward_direction*position0.z + right_direction*position0.x + up_direction*position0.y + forward_direction;
+    vec3 vRay = normalize(new_pos0 - eye.xyz);
+    StraightLine ray = StraightLine(new_pos0, vRay);
     Intersection intersection;
     bounceLightRay(ray, intersection);
 

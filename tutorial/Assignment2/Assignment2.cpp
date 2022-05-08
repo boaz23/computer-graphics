@@ -37,10 +37,26 @@ void Assignment2::Init()
 	radius = 1.0f;
 	upDownAngle = 0.0;
 	leftRightAngle = 0.0;
-	cameraCenter = Eigen::Vector4f(sceneData.eye(0), sceneData.eye(1), sceneData.eye(2) - 1, 0);
+	Eigen::Vector3f forward = (Eigen::Vector3f(0, 0, 0) - sceneData.eye.head(3)).normalized();
+	//cameraCenter = Eigen::Vector4f(sceneData.eye(0), sceneData.eye(1), sceneData.eye(2) - 1, 0);
+	Eigen::Vector3f newHead = sceneData.eye.head(3) + forward;
+	cameraCenter = Eigen::Vector4f(newHead(0), newHead(1), newHead(2), 1);
 	isUp = 1.0f;
 	ComputeAngleFromEye();
 	ComputeLookAtMatrix();
+}
+
+void printTransforms(Eigen::Matrix4f Model, Eigen::Matrix4f lookat) {
+	for (int i = 575; i < 625; i++) {
+		for (int j = 375; j < 425; j++) {
+			Eigen::Vector4f curPos(i, j, 0, 1);
+			Eigen::Vector4f oldPos = Model * curPos;
+			Eigen::Vector4f newPos = lookat * Model * curPos;
+			std::cout << i << ", " << j << " was: " << oldPos << std::endl << "transformed to : " << std::endl;
+			std::cout << newPos << std::endl << "****************" << std::endl;
+		}
+	}
+	std::cout << Model << std::endl << lookat << std::endl;
 }
 
 void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx)
@@ -60,6 +76,7 @@ void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	s->SetUniform4fv("lightsPosition", sceneData.lights.data(), sceneData.lights.size());
 	s->SetUniform4i("sizes", sceneData.sizes(0), sceneData.sizes(1), sceneData.sizes(2), sceneData.sizes(3));
 	s->SetUniform4f("cameraCenter", cameraCenter(0), cameraCenter(1), cameraCenter(2), cameraCenter(3));
+	s->SetUniform1f("isUp", isUp);
 	s->SetUniformMat4f("Proj", Proj);
 	s->SetUniformMat4f("LookAt", lookAtMatrix);
 	s->SetUniformMat4f("View", View);
@@ -103,6 +120,7 @@ void Assignment2::ChangeZoomBy(float dz)
 	translation << (forwardVector * SCALE_SENSITIVITY * dz), 0;
 	cameraCenter = cameraCenter + translation.transpose();
 	ComputeEyeFromAngle();
+	std::cout << sceneData.eye << std::endl << "***********" << std::endl;
 }
 
 
@@ -185,9 +203,18 @@ float Assignment2::intersectionWithObject(Eigen::Vector4f objectPos, Eigen::Vect
 	return dist;
 }
 void Assignment2::intersection(Eigen::Vector3f cursorPoint) {
+	//vec3 forward_direction = normalize(cameraCenter.xyz - eye.xyz);
+	//vec3 right_direction = normalize(cross(forward_direction, vec3(0, isUp, 0)));
+	//vec3 up_direction = normalize(cross(right_direction, forward_direction));
+	//vec3 new_pos0 = eye.xyz + forward_direction * position0.z + right_direction * position0.x + up_direction * position0.y + forward_direction;
+	//vec3 vRay = normalize(new_pos0 - eye.xyz);
 	Eigen::Vector4f eye = sceneData.eye;
-	Eigen::Vector3f v = (cursorPoint + cameraCenter.head(3) - eye.head(3)).normalized();
-	cursorPoint = eye.head(3);
+	Eigen::Vector3f forwardVector = (cameraCenter.head(3) - eye.head(3)).normalized();
+	Eigen::Vector3f rightVector = forwardVector.cross(Eigen::Vector3f(0, isUp, 0)).normalized();
+	Eigen::Vector3f upVector = rightVector.cross(forwardVector).normalized();
+	Eigen::Vector3f transformedPoint = eye.head(3) + forwardVector * cursorPoint.z() + rightVector * cursorPoint.x() + upVector * cursorPoint.y() + forwardVector;
+	cursorPoint = transformedPoint;
+	Eigen::Vector3f v = (cursorPoint - eye.head(3)).normalized();
 	int minIndex = -1;
 	float minDist = -1;
 	for (int i = 0; i < sceneData.sizes[0]; i++) {
@@ -219,7 +246,7 @@ void Assignment2::ComputeEyeFromAngle() {
 }
 
 void Assignment2::ComputeAngleFromEye() {
-	Eigen::Vector4f eyeToCamera = sceneData.eye - cameraCenter;
+	Eigen::Vector4f eyeToCamera = cameraCenter - sceneData.eye;
 	leftRightAngle = eyeToCamera.z() != 0 ? atanf(eyeToCamera.x() / eyeToCamera.z()) : 0.0;
 	upDownAngle = acosf(eyeToCamera.y() / radius);
 }
@@ -254,7 +281,7 @@ void Assignment2::ComputeLookAtMatrix() {
 	toRet <<
 		rightVector, 0,
 		upVector, 0,
-		forwardVector, 0,
-		-rightVector * eye, -upVector * eye, forwardVector* eye, 1;
-	lookAtMatrix = toRet;
+		-forwardVector, 0,
+		-rightVector * eye, -upVector * eye, -forwardVector*eye , 1;
+	lookAtMatrix = toRet.transpose();
 }
