@@ -19,7 +19,7 @@ void main()
 {	
 	texCoord0 = texCoords;
 	color0 = color;
-	normal0 = vec3(LookAt * Model * vec4(normal, 0.0));
+	normal0 = vec3(Model * vec4(normal, 0.0));
 	position0 =vec3(Model* vec4(position, 1.0));
 	gl_Position = Proj *View * Model* vec4(position, 1.0); //you must have gl_Position
 }

@@ -42,6 +42,7 @@ private:
 	float radius;
 	float xOld, yOld, xRel, yRel;
 	int pickedObjectIndex;
+	float width, height;
 };
 
 

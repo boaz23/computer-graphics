@@ -22,7 +22,9 @@ Assignment2::Assignment2()
 //}
 
 void Assignment2::Init()
-{		
+{
+	width = 800;
+	height = 800;
 	SceneParser("scene.txt", &sceneData);
 	AddShader("shaders/ourRayTracingShader");
 	AddShape(Plane, -1, TRIANGLES, 0);
@@ -91,8 +93,8 @@ void Assignment2::WhenRotate()
 
 float Assignment2::UpdatePosition(float xpos, float ypos)
 {
-	xRel = -xOld + xpos / 1200;
-	yRel = yOld - ypos / 800;
+	xRel = -xOld + xpos / width;
+	yRel = yOld - ypos / height;
 	xOld += xRel;
 	yOld -= yRel;
 	return yRel;
@@ -263,7 +265,7 @@ void Assignment2::TransformObject() {
 		translation << (rightVector * dx + upVector * dy), 0;
 		if (sceneData.objects[pickedObjectIndex](3) > 0) {
 			//sphere
-			sceneData.objects[pickedObjectIndex] += translation.transpose() * 8;
+			sceneData.objects[pickedObjectIndex] += translation.transpose() * 6;
 		}
 		else {
 			//plane

@@ -14,8 +14,8 @@
 
 			double x2, y2;
 			glfwGetCursorPos(window, &x2, &y2);
-			scn->intersection(Eigen::Vector3f(x2 / 600 - 1, 1 - y2 / 400, 0));
 			scn->UpdatePosition(x2, y2);
+			scn->intersection(Eigen::Vector3f(x2 / 400 - 1, 1 - y2 / 400, 0));
 		}
 	}
 	
