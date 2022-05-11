@@ -39,34 +39,16 @@ void Assignment2::Init()
 	radius = 1.0f;
 	upDownAngle = 0.0;
 	leftRightAngle = 0.0;
-	Eigen::Vector3f forward = (Eigen::Vector3f(0, 0, 0) - sceneData.eye.head(3)).normalized();
-	//cameraCenter = Eigen::Vector4f(sceneData.eye(0), sceneData.eye(1), sceneData.eye(2) - 1, 0);
-	Eigen::Vector3f newHead = sceneData.eye.head(3) + forward;
-	cameraCenter = Eigen::Vector4f(newHead(0), newHead(1), newHead(2), 1);
+	Eigen::Vector4f forward = (Eigen::Vector4f(0, 0, 0, 1) - sceneData.eye).normalized();
+	cameraCenter = sceneData.eye + forward;
 	isUp = 1.0f;
 	ComputeAngleFromEye();
 	ComputeLookAtMatrix();
 }
 
-void printTransforms(Eigen::Matrix4f Model, Eigen::Matrix4f lookat) {
-	for (int i = 575; i < 625; i++) {
-		for (int j = 375; j < 425; j++) {
-			Eigen::Vector4f curPos(i, j, 0, 1);
-			Eigen::Vector4f oldPos = Model * curPos;
-			Eigen::Vector4f newPos = lookat * Model * curPos;
-			std::cout << i << ", " << j << " was: " << oldPos << std::endl << "transformed to : " << std::endl;
-			std::cout << newPos << std::endl << "****************" << std::endl;
-		}
-	}
-	std::cout << Model << std::endl << lookat << std::endl;
-}
-
 void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx)
 {
 	Shader *s = shaders[shaderIndx];
-	int r = ((shapeIndx+1) & 0x000000FF) >>  0;
-	int g = ((shapeIndx+1) & 0x0000FF00) >>  8;
-	int b = ((shapeIndx+1) & 0x00FF0000) >> 16;
 	s->Bind();
 	Eigen::Vector4f eyeToUpload = sceneData.eye;
 	s->SetUniform4f("eye", eyeToUpload(0), eyeToUpload(1), eyeToUpload(2), eyeToUpload(3));	
@@ -77,8 +59,6 @@ void Assignment2::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& Vie
 	s->SetUniform4fv("lightsIntensity", sceneData.intensities.data(), sceneData.intensities.size());
 	s->SetUniform4fv("lightsPosition", sceneData.lights.data(), sceneData.lights.size());
 	s->SetUniform4i("sizes", sceneData.sizes(0), sceneData.sizes(1), sceneData.sizes(2), sceneData.sizes(3));
-	s->SetUniform4f("cameraCenter", cameraCenter(0), cameraCenter(1), cameraCenter(2), cameraCenter(3));
-	s->SetUniform1f("isUp", isUp);
 	s->SetUniformMat4f("Proj", Proj);
 	s->SetUniformMat4f("LookAt", lookAtMatrix);
 	s->SetUniformMat4f("View", View);
@@ -102,27 +82,24 @@ float Assignment2::UpdatePosition(float xpos, float ypos)
 
 void Assignment2::WhenTranslate()
 {
-	Eigen::Vector3f eye = sceneData.eye.head(3);
-	Eigen::RowVector3f forwardVector = (cameraCenter.head(3) - eye).normalized();
-	Eigen::RowVector3f rightVector = forwardVector.cross(Eigen::Vector3f(0, isUp, 0)).normalized();
-	Eigen::RowVector3f upVector = rightVector.cross(forwardVector).normalized();
+	Eigen::Vector4f eye = sceneData.eye;
+	Eigen::Vector4f forwardVector = (cameraCenter - eye).normalized();
+	Eigen::Vector4f rightVector = forwardVector.cross3(Eigen::Vector4f(0, isUp, 0, 1)).normalized();
+	Eigen::Vector4f upVector = rightVector.cross3(forwardVector).normalized();
 	float dx = xRel * 2;
 	float dy = yRel * 2;
-	Eigen::RowVector4f translation;
-	translation << (rightVector * dx + upVector * dy), 0;
-	cameraCenter = cameraCenter + translation.transpose();
+	Eigen::Vector4f translation = rightVector * dx + upVector * dy;
+	cameraCenter = cameraCenter + translation;
 	ComputeEyeFromAngle();
 }
 
 void Assignment2::ChangeZoomBy(float dz)
 {
-	Eigen::Vector3f eye = sceneData.eye.head(3);
-	Eigen::RowVector3f forwardVector = (cameraCenter.head(3) - eye).normalized();
-	Eigen::RowVector4f translation;
-	translation << (forwardVector * SCALE_SENSITIVITY * dz), 0;
-	cameraCenter = cameraCenter + translation.transpose();
+	Eigen::Vector4f eye = sceneData.eye;
+	Eigen::Vector4f forwardVector = (cameraCenter - eye).normalized();
+	Eigen::Vector4f translation = forwardVector * SCALE_SENSITIVITY * dz;
+	cameraCenter = cameraCenter + translation;
 	ComputeEyeFromAngle();
-	std::cout << sceneData.eye << std::endl << "***********" << std::endl;
 }
 
 
@@ -147,9 +124,11 @@ void Assignment2::RotateScene(int unitsUp, int unitsRight) {
 		upDownAngle += 2 * EIGEN_PI;
 	}
 	if ((upDownAngle > 0 && upDownAngle < EIGEN_PI) || (upDownAngle < -EIGEN_PI && upDownAngle > -2 * EIGEN_PI)) {
+		// if in the top half of the sphere
 		isUp = 1.0f;
 	}
 	else {
+		// if in the bottom half of the sphere
 		isUp = -1.0f;
 	}
 	ComputeEyeFromAngle();
@@ -205,17 +184,8 @@ float Assignment2::intersectionWithObject(Eigen::Vector4f objectPos, Eigen::Vect
 	return dist;
 }
 void Assignment2::intersection(Eigen::Vector3f cursorPoint) {
-	//vec3 forward_direction = normalize(cameraCenter.xyz - eye.xyz);
-	//vec3 right_direction = normalize(cross(forward_direction, vec3(0, isUp, 0)));
-	//vec3 up_direction = normalize(cross(right_direction, forward_direction));
-	//vec3 new_pos0 = eye.xyz + forward_direction * position0.z + right_direction * position0.x + up_direction * position0.y + forward_direction;
-	//vec3 vRay = normalize(new_pos0 - eye.xyz);
 	Eigen::Vector4f eye = sceneData.eye;
-	Eigen::Vector3f forwardVector = (cameraCenter.head(3) - eye.head(3)).normalized();
-	Eigen::Vector3f rightVector = forwardVector.cross(Eigen::Vector3f(0, isUp, 0)).normalized();
-	Eigen::Vector3f upVector = rightVector.cross(forwardVector).normalized();
-	Eigen::Vector3f transformedPoint = eye.head(3) + forwardVector * cursorPoint.z() + rightVector * cursorPoint.x() + upVector * cursorPoint.y() + forwardVector;
-	cursorPoint = transformedPoint;
+	cursorPoint = (lookAtMatrix * cursorPoint.homogeneous()).head(3);
 	Eigen::Vector3f v = (cursorPoint - eye.head(3)).normalized();
 	int minIndex = -1;
 	float minDist = -1;
@@ -255,35 +225,44 @@ void Assignment2::ComputeAngleFromEye() {
 
 void Assignment2::TransformObject() {
 	if (pickedObjectIndex != -1) {
-		Eigen::Vector3f eye = sceneData.eye.head(3);
-		Eigen::RowVector3f forwardVector = (cameraCenter.head(3) - eye).normalized();
-		Eigen::RowVector3f rightVector = forwardVector.cross(Eigen::Vector3f(0, isUp, 0)).normalized();
-		Eigen::RowVector3f upVector = rightVector.cross(forwardVector).normalized();
+		Eigen::Vector4f eye = sceneData.eye;
+		Eigen::Vector4f forwardVector = (cameraCenter - eye).normalized();
+		Eigen::Vector4f rightVector = forwardVector.cross3(Eigen::Vector4f(0, isUp, 0, 1)).normalized();
+		Eigen::Vector4f upVector = rightVector.cross3(forwardVector).normalized();
 		float dx = xRel;
 		float dy = yRel;
-		Eigen::RowVector4f translation;
-		translation << (rightVector * dx + upVector * dy), 0;
+		Eigen::Vector4f translation = rightVector * dx + upVector * dy;
 		if (sceneData.objects[pickedObjectIndex](3) > 0) {
 			//sphere
-			sceneData.objects[pickedObjectIndex] += translation.transpose() * 6;
+			sceneData.objects[pickedObjectIndex] += translation * 6;
 		}
 		else {
 			//plane
-			sceneData.objects[pickedObjectIndex] -= translation.transpose();
+			sceneData.objects[pickedObjectIndex] -= translation;
 		}
 	}
 }
 
 void Assignment2::ComputeLookAtMatrix() {
-	Eigen::Vector3f eye = sceneData.eye.head(3);
-	Eigen::RowVector3f forwardVector = (cameraCenter.head(3) - eye.head(3)).normalized();
-	Eigen::RowVector3f rightVector = forwardVector.cross(Eigen::Vector3f(0, isUp, 0)).normalized();
-	Eigen::RowVector3f upVector = rightVector.cross(forwardVector).normalized();
-	Eigen::Matrix4f toRet = Eigen::Matrix4f::Identity();
-	toRet <<
-		rightVector, 0,
-		upVector, 0,
-		-forwardVector, 0,
-		-rightVector * eye, -upVector * eye, -forwardVector*eye , 1;
-	lookAtMatrix = toRet.transpose();
+	Eigen::Vector4f eye = sceneData.eye;
+	Eigen::Vector4f forwardVector = (cameraCenter - eye).normalized();
+	Eigen::Vector4f rightVector = forwardVector.cross3(Eigen::Vector4f(0, isUp, 0, 1)).normalized();
+	Eigen::Vector4f upVector = rightVector.cross3(forwardVector).normalized();
+	lookAtMatrix.col(0) = rightVector;
+	lookAtMatrix.col(1) = upVector;
+	lookAtMatrix.col(2) = forwardVector;
+	// translate to eye with distance of 1 in the forward direction(translation + rotation of the camera to be in front of the eye in same orientation)
+	lookAtMatrix.col(3) = eye + forwardVector;
+}
+
+void Assignment2::PrintSphericalCoordinates() {
+	std::cout << "radius: " << radius << ", phi(up and down): " << (180.0 * upDownAngle / EIGEN_PI) <<
+		", theta(left and right): " << (180.0 * leftRightAngle / EIGEN_PI) << "." << std::endl;
+	std::cout << "eye cartesian coordinates: " << sceneData.eye.transpose() << "." << std::endl;
+	std::cout << "camera center cartesian coordinates: " << cameraCenter.transpose() << "." << std::endl;
+}
+
+void Assignment2::PrintLookAtMatrix() {
+	std::cout << "Look at Matrix(columns computed as right, up, forward, eye + forward): " << std::endl <<
+		lookAtMatrix << std::endl;
 }

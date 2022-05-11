@@ -81,7 +81,14 @@
 			case GLFW_KEY_RIGHT:
 				scn->RotateScene(0, 1);
 				break;
-
+			case 'a':
+			case 'A':
+				scn->PrintSphericalCoordinates();
+				break;
+			case 'l':
+			case 'L':
+				scn->PrintLookAtMatrix();
+				break;
 			default:
 				break;
 
@@ -95,5 +102,6 @@ void Init(Display& display, igl::opengl::glfw::imgui::ImGuiMenu *menu)
 	display.AddKeyCallBack(glfw_key_callback);
 	display.AddMouseCallBacks(glfw_mouse_callback, glfw_scroll_callback, glfw_cursor_position_callback);
 	display.AddResizeCallBack(glfw_window_size_callback);
-	menu->init(&display);
+	if(menu)
+		menu->init(&display);
 }

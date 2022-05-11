@@ -1,14 +1,12 @@
  #version 330
 
 uniform vec4 eye;
-uniform vec4 cameraCenter;
 uniform vec4 ambient;
 uniform vec4[20] objects;
 uniform vec4[20] objColors;
 uniform vec4[10] lightsDirection;
 uniform vec4[10] lightsIntensity;
 uniform vec4[10] lightsPosition;
-uniform float isUp;
 uniform ivec4 sizes;
 in vec3 position0;
 in vec3 normal0;
@@ -184,7 +182,6 @@ bool shouldGoThroughBlocking(Intersection hit, Intersection blocking, int kind) 
     bool skipObject = kind != INTERSECTION_KIND_REFRACTION;
     return false
         || (kind == INTERSECTION_KIND_REFRACTION && sameIndex)
-//        || sameIndex
         || (skipObject && blocking.objectIndex == hit.objectIndex)
         // Skip transparent planes. The light is considered to go through them without change
         || (isTransparentPlane(blocking.objectIndex))
@@ -202,12 +199,7 @@ Intersection findFirstIntersectingObject(StraightLine ray, Intersection hit, int
     Intersection minIntersection = invalidIntersection;
     for(int i = 0; i < sizes[0]; i++) {
         vec4 curObject = objects[i];
-
-//        int skipIndex = -1;
-//        int skipIndex = hit.absoluteIndex;
-          int skipIndex = kind == INTERSECTION_KIND_REFRACTION ? hit.absoluteIndex : -1;
-//        int skipIndex = skipObject ? (hit.absoluteIndex >= 0 ? (1 - hit.absoluteIndex) : -1) : -1;
-//        int skipIndex = max((-1 + 2*int(skipObject)) * hit.absoluteIndex, -1); // equivalent to `skipObject ? -1 : hit.absoluteIndex`
+        int skipIndex = kind == INTERSECTION_KIND_REFRACTION ? hit.absoluteIndex : -1;
         Intersection intersection = findIntersection(curObject, ray, skipIndex);
         intersection.objectIndex = i;
         if (
@@ -388,13 +380,15 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
             && (getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_TRANSPARENT) != 0
         ) {
             vec4 object = objects[intersection.objectIndex];
-            float cosIncoming = dot(-ray.v, intersection.pointNormal);
+            // if we hitted a sphere from inside then the normal should be to the center
+            vec3 normalToUse = intersection.absoluteIndex == 0 ? intersection.pointNormal : -intersection.pointNormal;
+            float cosIncoming = dot(-ray.v, normalToUse);
             // Refract only in case of a transparent sphere, but not if we are tanget to the radius
             if (isObjectOfKind(object, OBJ_KIND_SPHERE) && !isZero(cosIncoming)) {
-                // TODO: calculate the next refraction index based on the object hit:
+                // calculate the next refraction index based on the object hit:
                 //   * if we hit the same shpere we were before (but now from the inside), set to 1.
                 //   * otherwise, based on whether the object we hit is transparent or not.
-                // TODO: calculate the initial refraction (the very first) index based on the object we start in (if we do)
+                // calculate the initial refraction (the very first) index based on the object we start in (if we do)
                 float nextRefractionIndex;
                 if (intersection.count == 2) {
                     nextRefractionIndex = REFRACTION_INDEX_SPHERE;
@@ -409,12 +403,10 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
                         nextRefractionIndex = REFRACTION_INDEX_SPHERE;
                     }
                 }
-                // float nextRefractionIndex = (REFRACTION_INDEX_NORMAL + REFRACTION_INDEX_SPHERE) - refractionIndex;
                 float refractionRatio = refractionIndex / nextRefractionIndex;
-                vec3 vRay = normalize(refract(ray.v, -intersection.pointNormal, refractionRatio));
+                vec3 vRay = normalize(refract(ray.v, normalToUse, refractionRatio));
                 ray = StraightLine(intersection.point, vRay);
                 refractionIndex = nextRefractionIndex;
-                // prevRefractionIntersection = intersection;
                 intersection = findFirstIntersectingObject(ray, intersection, INTERSECTION_KIND_REFRACTION);
                 iRefraction++;
             }
@@ -431,12 +423,8 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
 
 void main()
 {
-    vec3 forward_direction = normalize(cameraCenter.xyz - eye.xyz);
-    vec3 right_direction = normalize(cross(forward_direction, vec3(0, isUp, 0)));
-    vec3 up_direction = normalize(cross(right_direction, forward_direction));
-    vec3 new_pos0 = eye.xyz + forward_direction*position0.z + right_direction*position0.x + up_direction*position0.y + forward_direction;
-    vec3 vRay = normalize(new_pos0 - eye.xyz);
-    StraightLine ray = StraightLine(new_pos0, vRay);
+    vec3 vRay = normalize(position0 - eye.xyz);
+    StraightLine ray = StraightLine(eye.xyz, vRay);
     Intersection intersection;
     bounceLightRay(ray, intersection);
 
@@ -445,7 +433,4 @@ void main()
         color = calculateColor_noTracing(ray.v, intersection);
     }
     outColor = vec4(color, 1);
-    if(abs(position0.z) <= 0.01 && abs(position0.y) <= 0.01 && abs(position0.x) <= 0.01){
-        outColor = vec4(1);
-    }
 }

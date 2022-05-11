@@ -23,6 +23,8 @@ public:
 	void RotateScene(int unitsUp, int unitsRight);
 	void Animate() override;
 	void ScaleAllShapes(float amt, int viewportIndx);
+	void PrintSphericalCoordinates();
+	void PrintLookAtMatrix();
 
 	float intersectionWithObject(Eigen::Vector4f objectPos, Eigen::Vector3f sourcePoint, Eigen::Vector3f dir);
 
