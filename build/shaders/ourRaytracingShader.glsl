@@ -148,6 +148,7 @@ Intersection findIntersection(vec4 object, StraightLine ray, int skipIndex) {
         if (dSquared <= r*r) {
             float th = sqrt(r*r - dSquared);
             float t1 = tm - th, t2 = tm + th;
+            float factor = 1.0;
             if (skipIndex != 0 && !isZeroP(t1)) {
                 dist = t1;
                 count = 2;
@@ -157,6 +158,7 @@ Intersection findIntersection(vec4 object, StraightLine ray, int skipIndex) {
                 dist = t2;
                 count = 1;
                 absoluteIndex = 1;
+                factor = -1.0;
             }
             else {
                 dist = -1.0;
@@ -164,7 +166,7 @@ Intersection findIntersection(vec4 object, StraightLine ray, int skipIndex) {
                 absoluteIndex = -1;
             }
             intersectionPoint = pointOnStraightLine(ray, dist);
-            normal = normalize(intersectionPoint - o);
+            normal = factor * normalize(intersectionPoint - o);
         }
     }
     return Intersection(-1, dist, intersectionPoint, normal, count, absoluteIndex);
@@ -380,9 +382,7 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
             && (getObjectFlags(intersection.objectIndex) & OBJ_FLAGS_TRANSPARENT) != 0
         ) {
             vec4 object = objects[intersection.objectIndex];
-            // if we hitted a sphere from inside then the normal should be to the center
-            vec3 normalToUse = intersection.absoluteIndex == 0 ? intersection.pointNormal : -intersection.pointNormal;
-            float cosIncoming = dot(-ray.v, normalToUse);
+            float cosIncoming = dot(-ray.v, intersection.pointNormal);
             // Refract only in case of a transparent sphere, but not if we are tanget to the radius
             if (isObjectOfKind(object, OBJ_KIND_SPHERE) && !isZero(cosIncoming)) {
                 // calculate the next refraction index based on the object hit:
@@ -404,7 +404,7 @@ void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
                     }
                 }
                 float refractionRatio = refractionIndex / nextRefractionIndex;
-                vec3 vRay = normalize(refract(ray.v, normalToUse, refractionRatio));
+                vec3 vRay = normalize(refract(ray.v, intersection.pointNormal, refractionRatio));
                 ray = StraightLine(intersection.point, vRay);
                 refractionIndex = nextRefractionIndex;
                 intersection = findFirstIntersectingObject(ray, intersection, INTERSECTION_KIND_REFRACTION);

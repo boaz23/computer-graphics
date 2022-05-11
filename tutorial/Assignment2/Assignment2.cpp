@@ -191,7 +191,7 @@ void Assignment2::intersection(Eigen::Vector3f cursorPoint) {
 	float minDist = -1;
 	for (int i = 0; i < sceneData.sizes[0]; i++) {
 		Eigen::Vector4f curObject = sceneData.objects[i];
-		float dist = intersectionWithObject(curObject, cursorPoint, v);
+		float dist = intersectionWithObject(curObject, eye.head(3), v);
 		if (true
 			&& dist >= 0.001
 			&& (minIndex == -1 || dist < minDist)
