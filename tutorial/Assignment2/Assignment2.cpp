@@ -39,6 +39,7 @@ void Assignment2::Init()
 	radius = 1.0f;
 	upDownAngle = 0.0;
 	leftRightAngle = 0.0;
+	// we set the initial center to be between the eye and (0, 0, 0) in distance of 1 from the eye
 	Eigen::Vector4f forward = (Eigen::Vector4f(0, 0, 0, 1) - sceneData.eye).normalized();
 	cameraCenter = sceneData.eye + forward;
 	isUp = 1.0f;
@@ -83,11 +84,13 @@ float Assignment2::UpdatePosition(float xpos, float ypos)
 void Assignment2::WhenTranslate()
 {
 	Eigen::Vector4f eye = sceneData.eye;
+	// calculate the eye axis by the target and roll = 0 condition
 	Eigen::Vector4f forwardVector = (cameraCenter - eye).normalized();
 	Eigen::Vector4f rightVector = forwardVector.cross3(Eigen::Vector4f(0, isUp, 0, 1)).normalized();
 	Eigen::Vector4f upVector = rightVector.cross3(forwardVector).normalized();
 	float dx = xRel * 2;
 	float dy = yRel * 2;
+	// translate in relate to the eye x and y axis
 	Eigen::Vector4f translation = rightVector * dx + upVector * dy;
 	cameraCenter = cameraCenter + translation;
 	ComputeEyeFromAngle();
@@ -96,8 +99,10 @@ void Assignment2::WhenTranslate()
 void Assignment2::ChangeZoomBy(float dz)
 {
 	Eigen::Vector4f eye = sceneData.eye;
+	// calculate the eye axis by the target and roll = 0 condition
 	Eigen::Vector4f forwardVector = (cameraCenter - eye).normalized();
 	Eigen::Vector4f translation = forwardVector * SCALE_SENSITIVITY * dz;
+	// translate in relate to the eye z axis
 	cameraCenter = cameraCenter + translation;
 	ComputeEyeFromAngle();
 }
