@@ -85,11 +85,9 @@ void Assignment3::Animate() {
 			Action* currentAction = actionsQueue.front();
 			double newProgress = currentAction->progress + SPEED * EIGEN_PI/2.0;
 			double angleDelta = std::fmin(SPEED* EIGEN_PI / 2.0, (EIGEN_PI / 2.0) - currentAction->progress);
-			Eigen::Matrix3d partialRotationMatrix = Eigen::AngleAxisd(angleDelta, currentAction->GetRotationAxis()).toRotationMatrix();
 			for (CubeData* cube : cubesData) {
 				if (cube->GetIndexes()(currentAction->axis) == currentAction->targetIndex) {
-					data_list[cube->GetMeshId()]->MyRotate(partialRotationMatrix);
-					//data(cube->GetMeshId())->MyRotate(partialRotationMatrix);
+					data_list[cube->GetMeshId()]->RotateInSystem(currentAction->GetRotationAxis(), angleDelta);
 				}
 			}
 			currentAction->progress = currentAction->progress + angleDelta;
