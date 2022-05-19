@@ -21,23 +21,34 @@ Assignment3::Assignment3(int wallSize)
 void Assignment3::Init()
 {		
 	AddShader("shaders/basicShader");
-	SetCenterOfRotation(Eigen::Vector3d(0, 0, 0));
 	GenerateCubes();
 }
 
 void Assignment3::GenerateCubes() {
 	float offset = ((float)wallSize - CUBE_SIZE) / 2;
+	bool flag = false;
 	for (float x = -offset; x < offset+1; x++) {
 		for (float y = -offset; y < offset+1; y++) {
 			for (float z = -offset; z < offset+1; z++) {
-				int newShapeIndex = AddShape(Cube, -1, TRIANGLES);
+				if (abs(x) != offset && abs(y) != offset && abs(z) != offset) {
+					continue;
+				}
+				int newShapeIndex;
+				if (flag) {
+					newShapeIndex = AddShapeCopy(0, -1, TRIANGLES);
+				}
+				else {
+					newShapeIndex = AddShape(Cube, -1, TRIANGLES);
+					flag = true;
+				}
+
 				SetShapeShader(newShapeIndex, 0);
 				Eigen::Vector3d toCenter = Eigen::Vector3d(x, y, z);
 				data()->MyTranslate(toCenter, 1);
 				data()->SetCenterOfRotation(-toCenter);
 				cubesData.push_back(new CubeData(newShapeIndex, Eigen::Vector3d(x, y, z)));
-				if (x == -offset) {
-					Eigen::Matrix3d rotMat = Eigen::AngleAxisd(EIGEN_PI / 2.0, Eigen::Vector3d(1, 0, 0)).toRotationMatrix();
+				if (x == -offset+1) {
+					Eigen::Matrix3d rotMat = Eigen::AngleAxisd(EIGEN_PI / 4.0, Eigen::Vector3d(1, 0, 0)).toRotationMatrix();
 					data()->MyRotate(rotMat);
 					cubesData.back()->RotateIndexes(rotMat.cast<int>());
 				}
