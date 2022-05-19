@@ -21,7 +21,7 @@ void main()
 	
 	texCoord0 = texcoord;
 	color0 = vec3(Ka);
-	normal0 = (Model  * vec4(normal, 0.0)).xyz;
+	normal0 = (vec4(normal, 0.0)).xyz;
 	position0 = vec3(Proj *View *Model * vec4(position, 1.0));
 	gl_Position = Proj *View * Model* vec4(position, 1.0); //you must have gl_Position
 }
