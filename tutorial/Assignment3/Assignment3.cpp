@@ -21,16 +21,18 @@ Assignment3::Assignment3(int wallSize)
 void Assignment3::Init()
 {		
 	AddShader("shaders/basicShader");
+	isActive = true;
+	offset = wallSize - CUBE_SIZE;
 	GenerateCubes();
 }
 
 void Assignment3::GenerateCubes() {
-	float offset = ((float)wallSize - CUBE_SIZE) / 2;
 	bool flag = false;
-	for (float x = -offset; x < offset+1; x++) {
-		for (float y = -offset; y < offset+1; y++) {
-			for (float z = -offset; z < offset+1; z++) {
+	for (int x = -offset; x <= offset; x += CUBE_SIZE * 2) {
+		for (int y = -offset; y <= offset; y += CUBE_SIZE * 2) {
+			for (int z = -offset; z <= offset; z += CUBE_SIZE * 2) {
 				if (abs(x) != offset && abs(y) != offset && abs(z) != offset) {
+					// internal cube. can skip rendering it.
 					continue;
 				}
 				int newShapeIndex;
@@ -41,14 +43,14 @@ void Assignment3::GenerateCubes() {
 					newShapeIndex = AddShape(Cube, -1, TRIANGLES);
 					flag = true;
 				}
-
 				SetShapeShader(newShapeIndex, 0);
-				Eigen::Vector3d toCenter = Eigen::Vector3d(x, y, z);
+				Eigen::Vector3d toCenter = Eigen::Vector3d(x, y, z).array() / 2.0;
 				data()->MyTranslate(toCenter, 1);
 				data()->SetCenterOfRotation(-toCenter);
-				cubesData.push_back(new CubeData(newShapeIndex, Eigen::Vector3d(x, y, z)));
-				if (x == -offset+1) {
+				cubesData.push_back(new CubeData(newShapeIndex, Eigen::Vector3i(x, y, z)));
+				if (x == -offset && false) {
 					Eigen::Matrix3d rotMat = Eigen::AngleAxisd(EIGEN_PI / 4.0, Eigen::Vector3d(1, 0, 0)).toRotationMatrix();
+					data()->MyRotate(rotMat);
 					data()->MyRotate(rotMat);
 					cubesData.back()->RotateIndexes(rotMat.cast<int>());
 				}
@@ -79,7 +81,29 @@ void Assignment3::WhenTranslate()
 void Assignment3::Animate() {
     if(isActive)
 	{
-		
+		if (!actionsQueue.empty()) {
+			Action* currentAction = actionsQueue.front();
+			double newProgress = currentAction->progress + SPEED * EIGEN_PI/2.0;
+			double angleDelta = std::fmin(SPEED* EIGEN_PI / 2.0, (EIGEN_PI / 2.0) - currentAction->progress);
+			Eigen::Matrix3d partialRotationMatrix = Eigen::AngleAxisd(angleDelta, currentAction->GetRotationAxis()).toRotationMatrix();
+			for (CubeData* cube : cubesData) {
+				if (cube->GetIndexes()(currentAction->axis) == currentAction->targetIndex) {
+					data_list[cube->GetMeshId()]->MyRotate(partialRotationMatrix);
+					//data(cube->GetMeshId())->MyRotate(partialRotationMatrix);
+				}
+			}
+			currentAction->progress = currentAction->progress + angleDelta;
+			if (newProgress >= EIGEN_PI / 2.0) {
+				Eigen::Matrix3d fullRotationMatrix = Eigen::AngleAxisd(EIGEN_PI / 2.0, currentAction->GetRotationAxis()).toRotationMatrix();
+				for (CubeData* cube : cubesData) {
+					if (cube->GetIndexes()(currentAction->axis) == currentAction->targetIndex) {
+						cube->RotateIndexes(fullRotationMatrix.cast<int>());
+					}
+				}
+				delete currentAction;
+				actionsQueue.pop();
+			}
+		}
 	}
 }
 
@@ -96,5 +120,19 @@ void Assignment3::ScaleAllShapes(float amt,int viewportIndx)
 
 Assignment3::~Assignment3(void)
 {
+	for (CubeData* cube : cubesData) {
+		delete cube;
+	}
+	while (!actionsQueue.empty())
+	{
+		Action* action = actionsQueue.front();
+		actionsQueue.pop();
+		delete action;
+	}
 }
 
+void Assignment3::AddAction(int axis, int targetIndex)
+{
+	Action* action = new Action(axis, targetIndex);
+	actionsQueue.push(action);
+}

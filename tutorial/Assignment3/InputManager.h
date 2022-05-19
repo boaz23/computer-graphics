@@ -122,24 +122,23 @@
 				rndr->MoveCamera(0, scn->yRotate, -0.05f);
 				break;
 			case GLFW_KEY_U:
-				rndr->MoveCamera(0, scn->yTranslate, 0.25f);
+				scn->AddAction(1, scn->GetOffset());
 				break;
 			case GLFW_KEY_D:
-				rndr->MoveCamera(0, scn->yTranslate, -0.25f);
+				scn->AddAction(1, -scn->GetOffset());
 				break;
 			case GLFW_KEY_L:
-				rndr->MoveCamera(0, scn->xTranslate, -0.25f);
+				scn->AddAction(0, -scn->GetOffset());
 				break;
-			
 			case GLFW_KEY_R:
-				rndr->MoveCamera(0, scn->xTranslate, 0.25f);
+				scn->AddAction(0, scn->GetOffset());
 				break;
-			
+
 			case GLFW_KEY_B:
-				rndr->MoveCamera(0, scn->zTranslate, 0.5f);
+				scn->AddAction(2, -scn->GetOffset());
 				break;
 			case GLFW_KEY_F:
-				rndr->MoveCamera(0, scn->zTranslate, -0.5f);
+				scn->AddAction(2, scn->GetOffset());
 				break;
 			default:
 				break;
