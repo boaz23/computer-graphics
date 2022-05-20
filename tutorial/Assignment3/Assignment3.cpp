@@ -21,9 +21,14 @@ Assignment3::Assignment3(int wallSize)
 void Assignment3::Init()
 {		
 	AddShader("shaders/basicShader");
+	speed = SPEED;
+	rotationDirection = 1;
+	std::random_device rd;
+	randomizer = std::mt19937(rd());
 	isActive = true;
 	offset = wallSize - CUBE_SIZE;
 	GenerateCubes();
+	ShuffleCubesInitial();
 }
 
 void Assignment3::GenerateCubes() {
@@ -48,17 +53,27 @@ void Assignment3::GenerateCubes() {
 				data()->MyTranslate(toCenter, 1);
 				data()->SetCenterOfRotation(-toCenter);
 				cubesData.push_back(new CubeData(newShapeIndex, Eigen::Vector3i(x, y, z)));
-				if (x == -offset && false) {
-					Eigen::Matrix3d rotMat = Eigen::AngleAxisd(EIGEN_PI / 4.0, Eigen::Vector3d(1, 0, 0)).toRotationMatrix();
-					data()->MyRotate(rotMat);
-					data()->MyRotate(rotMat);
-					cubesData.back()->RotateIndexes(rotMat.cast<int>());
-				}
 			}
 		}
 	}
 }
 
+void Assignment3::ShuffleCubesInitial() {
+	std::uniform_int_distribution<int> axisDist(0, 2);
+	std::uniform_int_distribution<int> targetDist(0, wallSize - 1);
+	for (int i = 0; i < 10; i++) {
+		int targetAxis = axisDist(randomizer);
+		int targetOffset = -offset + CUBE_SIZE * 2 * targetDist(randomizer);
+		Action action(targetAxis, targetOffset, rotationDirection);
+		Eigen::Matrix3d fullRotationMatrix = Eigen::AngleAxisd(EIGEN_PI / 2.0, action.GetRotationAxis()).toRotationMatrix();
+		for (CubeData* cube : cubesData) {
+			if (cube->GetIndexes()(action.axis) == action.targetIndex) {
+				data_list[cube->GetMeshId()]->RotateInSystem(action.GetRotationAxis(), EIGEN_PI / 2.0);
+				cube->RotateIndexes(fullRotationMatrix.cast<int>());
+			}
+		}
+	}
+}
 void Assignment3::Update(const Eigen::Matrix4f& Proj, const Eigen::Matrix4f& View, const Eigen::Matrix4f& Model, unsigned int  shaderIndx, unsigned int shapeIndx)
 {
 	cachedProj = Proj;
@@ -85,8 +100,14 @@ void Assignment3::Animate() {
 	{
 		if (!actionsQueue.empty()) {
 			Action* currentAction = actionsQueue.front();
-			double newProgress = currentAction->progress + SPEED * EIGEN_PI/2.0;
-			double angleDelta = std::fmin(SPEED* EIGEN_PI / 2.0, (EIGEN_PI / 2.0) - currentAction->progress);
+			if (currentAction->isPickingAction) {
+				Picking(currentAction->x, currentAction->y);				
+				delete currentAction;
+				actionsQueue.pop();
+				return;
+			}
+			double newProgress = currentAction->progress + speed * EIGEN_PI/2.0;
+			double angleDelta = std::fmin(speed* EIGEN_PI / 2.0, (EIGEN_PI / 2.0) - currentAction->progress);
 			for (CubeData* cube : cubesData) {
 				if (cube->GetIndexes()(currentAction->axis) == currentAction->targetIndex) {
 					data_list[cube->GetMeshId()]->RotateInSystem(currentAction->GetRotationAxis(), angleDelta);
@@ -131,9 +152,15 @@ Assignment3::~Assignment3(void)
 	}
 }
 
-void Assignment3::AddAction(int axis, int targetIndex)
+void Assignment3::AddRotationAction(int axis, int targetIndex)
 {
-	Action* action = new Action(axis, targetIndex);
+	Action* action = new Action(axis, targetIndex, rotationDirection);
+	actionsQueue.push(action);
+}
+
+void Assignment3::AddPickingAction(double x, double y)
+{
+	Action* action = new Action(x, y);
 	actionsQueue.push(action);
 }
 
@@ -239,24 +266,52 @@ void Assignment3::RotateCubeByFace(CubeData* cube, int faceIndex) {
 	Eigen::Vector3d faceNormal = data_list[cube->GetMeshId()]->F_normals.row(faceIndex);
 	faceNormal = data_list[cube->GetMeshId()]->MakeTransd().block(0, 0, 3, 3).matrix() * faceNormal;
 	if ((faceNormal - Eigen::Vector3d(1, 0, 0)).norm() <= 0.01) {
-		AddAction(0, offset);
+		AddRotationAction(0, offset);
 	}
 	else if ((faceNormal - Eigen::Vector3d(-1, 0, 0)).norm() <= 0.01) {
-		AddAction(0, -offset);
+		AddRotationAction(0, -offset);
 	}
 	else if ((faceNormal - Eigen::Vector3d(0, 1, 0)).norm() <= 0.01) {
-		AddAction(1, offset);
+		AddRotationAction(1, offset);
 	}
 	else if ((faceNormal - Eigen::Vector3d(0, -1, 0)).norm() <= 0.01) {
-		AddAction(1, -offset);
+		AddRotationAction(1, -offset);
 	}
 	else if ((faceNormal - Eigen::Vector3d(0, 0, 1)).norm() <= 0.01) {
-		AddAction(2, offset);
+		AddRotationAction(2, offset);
 	}
 	else if ((faceNormal - Eigen::Vector3d(0, 0, -1)).norm() <= 0.01) {
-		AddAction(2, -offset);
+		AddRotationAction(2, -offset);
 	}
 	else {
 		std::cout << "ilegal normal!!!!!!!!!!!!: " << faceNormal << std::endl;
+	}
+}
+
+void Assignment3::FlipDirection() {
+	rotationDirection = rotationDirection * -1;
+}
+
+void Assignment3::IncreaseSpeed() {
+	speed += SPEED_STEP;
+	if (speed > 1.0) {
+		speed = 1.0;
+	}
+}
+
+void Assignment3::DecreaseSpeed() {
+	speed -= SPEED_STEP;
+	if (speed <= 0.001) {
+		speed = 0.001;
+	}
+}
+
+void Assignment3::RandomMix() {
+	std::uniform_int_distribution<int> axisDist(0, 2);
+	std::uniform_int_distribution<int> targetDist(0, wallSize - 1);
+	for (int i = 0; i < 10; i++) {
+		int targetAxis = axisDist(randomizer);
+		int targetOffset = -offset + CUBE_SIZE * 2 * targetDist(randomizer);
+		AddRotationAction(targetAxis, targetOffset);
 	}
 }

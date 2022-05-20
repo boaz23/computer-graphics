@@ -16,7 +16,7 @@
 			glfwGetCursorPos(window, &x2, &y2);
 			rndr->UpdatePress(x2, y2);
 			if (button == GLFW_MOUSE_BUTTON_RIGHT)
-				scn->Picking(x2, y2);
+				scn->AddPickingAction(x2, y2);
 			if (rndr->Picking((int)x2, (int)y2))
 			{
 				rndr->UpdatePosition(x2, y2);
@@ -95,45 +95,36 @@
 		{
 			switch (key)
 			{
-			case GLFW_KEY_ESCAPE:
-				glfwSetWindowShouldClose(window, GLFW_TRUE);
-				break;
-
-			case GLFW_KEY_UP:
-				rndr->MoveCamera(0, scn->xRotate, 0.05f);
-				
-				break;
-			case GLFW_KEY_DOWN:
-				//scn->shapeTransformation(scn->xGlobalRotate,-5.f);
-				//cout<< "down: "<<endl;
-				rndr->MoveCamera(0, scn->xRotate, -0.05f);
-				break;
-			case GLFW_KEY_LEFT:
-				rndr->MoveCamera(0, scn->yRotate, 0.05f);
-				break;
-			case GLFW_KEY_RIGHT:
-				//scn->shapeTransformation(scn->xGlobalRotate,-5.f);
-				//cout<< "down: "<<endl;
-				rndr->MoveCamera(0, scn->yRotate, -0.05f);
-				break;
 			case GLFW_KEY_U:
-				scn->AddAction(1, scn->GetOffset());
+				scn->AddRotationAction(1, scn->GetOffset());
 				break;
 			case GLFW_KEY_D:
-				scn->AddAction(1, -scn->GetOffset());
+				scn->AddRotationAction(1, -scn->GetOffset());
 				break;
 			case GLFW_KEY_L:
-				scn->AddAction(0, -scn->GetOffset());
+				scn->AddRotationAction(0, -scn->GetOffset());
 				break;
 			case GLFW_KEY_R:
-				scn->AddAction(0, scn->GetOffset());
+				scn->AddRotationAction(0, scn->GetOffset());
 				break;
 
 			case GLFW_KEY_B:
-				scn->AddAction(2, -scn->GetOffset());
+				scn->AddRotationAction(2, -scn->GetOffset());
 				break;
 			case GLFW_KEY_F:
-				scn->AddAction(2, scn->GetOffset());
+				scn->AddRotationAction(2, scn->GetOffset());
+				break;
+			case ' ':
+				scn->FlipDirection();
+				break;
+			case GLFW_KEY_Z:
+				scn->IncreaseSpeed();
+				break;
+			case GLFW_KEY_A:
+				scn->DecreaseSpeed();
+				break;
+			case GLFW_KEY_M:
+				scn->RandomMix();
 				break;
 			default:
 				break;
