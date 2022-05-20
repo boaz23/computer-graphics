@@ -185,6 +185,7 @@ void Assignment3::ProjectScreenCoordToScene(double x, double y, float m_viewport
 }
 
 bool Assignment3::TriangleIntersection(const Eigen::Vector3f& source, const Eigen::Vector3f& dir, const Eigen::Matrix3f& vertices, const Eigen::Vector3f& normal, Eigen::Vector3f& intersectionPoint) {
+	// check if intersecting the triangle plane like in the lecture
 	Eigen::Vector3f vv1 = vertices.row(0).transpose() - source;
 	float dist = (normal.dot(vv1)) / normal.dot(dir);
 	if (dist > FLT_EPSILON && dist < INFINITY) {
@@ -265,27 +266,11 @@ void Assignment3::Picking(double x, double y) {
 void Assignment3::RotateCubeByFace(CubeData* cube, int faceIndex) {
 	Eigen::Vector3d faceNormal = data_list[cube->GetMeshId()]->F_normals.row(faceIndex);
 	faceNormal = data_list[cube->GetMeshId()]->MakeTransd().block(0, 0, 3, 3).matrix() * faceNormal;
-	if ((faceNormal - Eigen::Vector3d(1, 0, 0)).norm() <= 0.01) {
-		AddRotationAction(0, offset);
-	}
-	else if ((faceNormal - Eigen::Vector3d(-1, 0, 0)).norm() <= 0.01) {
-		AddRotationAction(0, -offset);
-	}
-	else if ((faceNormal - Eigen::Vector3d(0, 1, 0)).norm() <= 0.01) {
-		AddRotationAction(1, offset);
-	}
-	else if ((faceNormal - Eigen::Vector3d(0, -1, 0)).norm() <= 0.01) {
-		AddRotationAction(1, -offset);
-	}
-	else if ((faceNormal - Eigen::Vector3d(0, 0, 1)).norm() <= 0.01) {
-		AddRotationAction(2, offset);
-	}
-	else if ((faceNormal - Eigen::Vector3d(0, 0, -1)).norm() <= 0.01) {
-		AddRotationAction(2, -offset);
-	}
-	else {
-		std::cout << "ilegal normal!!!!!!!!!!!!: " << faceNormal << std::endl;
-	}
+	// round up or down to correct percision errors
+	faceNormal = faceNormal.array().round();
+	int axisWithSign = faceNormal.cast<int>().dot(Eigen::RowVector3i(1, 2, 3));
+	int sign = axisWithSign > 0 ? 1 : -1;
+	AddRotationAction(abs(axisWithSign) - 1, sign * offset);
 }
 
 void Assignment3::FlipDirection() {
