@@ -15,6 +15,8 @@
 			
 			glfwGetCursorPos(window, &x2, &y2);
 			rndr->UpdatePress(x2, y2);
+			if (button == GLFW_MOUSE_BUTTON_RIGHT)
+				scn->Picking(x2, y2);
 			if (rndr->Picking((int)x2, (int)y2))
 			{
 				rndr->UpdatePosition(x2, y2);
@@ -95,13 +97,6 @@
 			{
 			case GLFW_KEY_ESCAPE:
 				glfwSetWindowShouldClose(window, GLFW_TRUE);
-				break;
-				
-			case GLFW_KEY_SPACE:
-				if (scn->IsActive())
-					scn->Deactivate();
-				else
-					scn->Activate();
 				break;
 
 			case GLFW_KEY_UP:
