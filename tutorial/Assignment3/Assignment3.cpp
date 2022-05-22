@@ -33,13 +33,24 @@ void Assignment3::Init()
 
 void Assignment3::GenerateCubes() {
 	bool flag = false;
+	int maxLayer = 0;
+	Eigen::Vector3d topRightCenter = Eigen::Vector3d(offset, offset, offset).array() / 2.0;
 	for (int x = -offset; x <= offset; x += CUBE_SIZE * 2) {
 		for (int y = -offset; y <= offset; y += CUBE_SIZE * 2) {
 			for (int z = -offset; z <= offset; z += CUBE_SIZE * 2) {
-				if (abs(x) != offset && abs(y) != offset && abs(z) != offset) {
+				Eigen::Vector3d toCenter = Eigen::Vector3d(x, y, z).array() / 2.0;
+				int layersFromExternal = (offset - std::max(abs(x), std::max(abs(y), abs(z))))/2;
+				// we check the intersection between a most external line of the cube while he rotated by 45 degrees(maximum rotation)
+				// and an external line of the current cube layer.
+				// only draw cube if the minimum distance from the the closest corner on any axis is less than that.
+				// so we will draw only cubes that when a plane next to them is maximally rotated the minimum distance on any axis from the closest
+				// external wall is less then the length of the part on the current cube layer that will be revealed by the maximally rotated plane.
+				double maxDistVisible = ((double)wallSize) * (1 - sin(EIGEN_PI / 4.0)) - layersFromExternal;
+				if ((topRightCenter - (Eigen::Vector3d)toCenter.array().abs()).minCoeff() >= maxDistVisible) {
 					// internal cube. can skip rendering it.
 					continue;
 				}
+				maxLayer = std::max(maxLayer, layersFromExternal + 1);
 				int newShapeIndex;
 				if (flag) {
 					newShapeIndex = AddShapeCopy(0, -1, TRIANGLES);
@@ -49,13 +60,13 @@ void Assignment3::GenerateCubes() {
 					flag = true;
 				}
 				SetShapeShader(newShapeIndex, 0);
-				Eigen::Vector3d toCenter = Eigen::Vector3d(x, y, z).array() / 2.0;
 				data()->MyTranslate(toCenter, 1);
 				data()->SetCenterOfRotation(-toCenter);
 				cubesData.push_back(new CubeData(newShapeIndex, Eigen::Vector3i(x, y, z)));
 			}
 		}
 	}
+	std::cout << "drawn " << cubesData.size() << " cubes(" << maxLayer << " layers)." << std::endl;
 }
 
 void Assignment3::ShuffleCubesInitial() {
