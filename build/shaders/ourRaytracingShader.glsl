@@ -216,39 +216,68 @@ Intersection findFirstIntersectingObject(StraightLine ray, Intersection hit, int
 }
 
 struct BasedPlane {
-    vec3 anchor;
+    vec3 p0;
     vec3 base1;
     vec3 base2;
 };
 
 BasedPlane findBaseForPlane(vec4 plane) {
     float d = plane.w;
-    vec3 planeCoefficients = plane.xyz;
-    vec3 planeNormal = normalize(planeCoefficients);
-    vec3 anchor = -(d / dot(planeCoefficients, planeCoefficients)) * planeCoefficients;
+    vec3 C = plane.xyz;
+    vec3 N = normalize(C);
+    vec3 p0 = -(d / dot(C, C)) * C; // normal intersection with the plane
     vec3 b1, b2;
-    if (plane.x == 0 && plane.y == 0) {
+    if (plane.x == 0 && plane.z == 0) {
         b1 = vec3(1, 0, 0);
-        b2 = vec3(0, 1, 0);
+        b2 = vec3(0, 0, 1);
     }
     else {
-        b1 = normalize(vec3(-plane.y, plane.x, 0));
-        b2 = normalize(cross(b1, planeNormal));
+        float y = plane.y;
+        float upSign = (y == 0 || d == 0) ? 1 : -sign(y)*sign(d);
+        b1 = normalize(cross(C, vec3(0, upSign, 0)));
+        b2 = normalize(cross(b1, C));
     }
-    return BasedPlane(anchor, b1, b2);
+    return BasedPlane(p0, b1, b2);
 }
 
 vec2 calculateBaseCoordinates(BasedPlane plane, vec3 point) {
+    // Solve the following equation (where p = point):
+    //   p0 + b1*x + b2*y = p
+
+    // reordering:
+    //   b1*x + b2*y + p0*1 = p
+    // or in matrix form:
+    // (column major representation, homogeneous coordinates)
+    //   mat3(b1, b2, p0)*vec3(x, y, 1) = p
+    // therefore:
+    //   (x, y, 1) = inverse(mat3(b1, b2, p0))*p
+    
+    // Keep in mind that this is not a unitary matrix because p0 is not
+    // necessarily normalized. And it shouldn't be because after all this is.
+    // an absoulte point offset to the 'start' of the plane.
+    // Although, b1 and b2 need to be normalized.
+    mat3 m = mat3(plane.base1, plane.base2, plane.p0);
+    // Therefore, transpose(m) is not inverse(m).
+    mat3 mi = inverse(m);
+    // `hc` should be the homogeneous coordinates in the plane.
+    vec3 hc = mi*point;
+    // `hc.z` should be 1, but this is floating point, so divide by z
+    hc /= hc.z;
+    return hc.xy;
+
+    // --------------------------------------------------------------
+    // Older method
+    //
     // `mat2x3` is actually a 3x2 matrix.
     // Solve the following linear equation system:
-    //   anchor + mat2x3(base1, base2) * vec2(x, y) = point
+    //   p0 + mat2x3(base1, base2) * vec2(x, y) = point
     // Equivalently, solve:
-    //   mat2x3(base1, base2) * vec2(x, y) = point - anchor
-    // The solution vec2(x, y)
-    mat2x3 coefficients = mat2x3(plane.base1, plane.base2);
-    mat3x2 coefficientsT = transpose(coefficients);
-    mat3x2 leftInverse = inverse(coefficientsT * coefficients) * coefficientsT;
-    return leftInverse * (point - plane.anchor);
+    //   mat2x3(base1, base2) * vec2(x, y) = point - p0
+    // The solution is vec2(x, y)
+    // mat2x3 coefficients = mat2x3(plane.base1, plane.base2);
+    // mat3x2 coefficientsT = transpose(coefficients);
+    // mat3x2 leftInverse = inverse(coefficientsT * coefficients) * coefficientsT;
+    // return leftInverse * (point - plane.p0);
 }
 
 #define PLANE_SQUARE_SIDE_LENGTH (1 / 1.5)
@@ -356,7 +385,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
 
 #define REFRACTION_INDEX_NORMAL 1
 #define REFRACTION_INDEX_SPHERE 1.5
-#define MAX_TRACING_COUNT 5
+#define MAX_TRACING_COUNT 0
 void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
     int iRefraction = 0, iReflection = 0;
     float refractionIndex = REFRACTION_INDEX_NORMAL;
