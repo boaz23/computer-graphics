@@ -253,7 +253,7 @@ vec2 calculateBaseCoordinates(BasedPlane plane, vec3 point) {
     //   (x, y, 1) = inverse(mat3(b1, b2, p0))*p
     
     // Keep in mind that this is not a unitary matrix because p0 is not
-    // necessarily normalized. And it shouldn't be because after all this is.
+    // necessarily normalized. And it shouldn't be because after all this is
     // an absoulte point offset to the 'start' of the plane.
     // Although, b1 and b2 need to be normalized.
     mat3 m = mat3(plane.base1, plane.base2, plane.p0);
@@ -385,7 +385,7 @@ vec3 calculateColor_noTracing(vec3 vRay, Intersection intersection) {
 
 #define REFRACTION_INDEX_NORMAL 1
 #define REFRACTION_INDEX_SPHERE 1.5
-#define MAX_TRACING_COUNT 0
+#define MAX_TRACING_COUNT 5
 void bounceLightRay(inout StraightLine ray, out Intersection intersection) {
     int iRefraction = 0, iReflection = 0;
     float refractionIndex = REFRACTION_INDEX_NORMAL;
