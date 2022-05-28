@@ -233,7 +233,8 @@ BasedPlane findBaseForPlane(vec4 plane) {
     }
     else {
         float y = plane.y;
-        float upSign = (y == 0 || d == 0) ? 1 : -sign(y)*sign(d);
+        // float upSign = (y == 0 || d == 0) ? 1 : -sign(y)*sign(d);
+        float upSign = -sign(y)*sign(d) + int(y == 0 || d == 0);
         b1 = normalize(cross(C, vec3(0, upSign, 0)));
         b2 = normalize(cross(b1, C));
     }
