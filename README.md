@@ -1,5 +1,7 @@
-# EngineForAnimationCourse
-Graphic Engine based on Libigl
+This repository has our implementation for the course assignments (expect for the project).
+The course's project repository is [here](https://github.com/boaz23/computer-graphics-course-project).
+
+Graphic Engine based on Libigl.
 
 For compiling:
 1. Clone or download the project
